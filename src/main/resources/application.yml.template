@@ -1,0 +1,37 @@
+server:
+  port: 8080
+
+spring:
+  # 파일 업로드 (음성 파일 용량 확장)
+  servlet:
+    multipart:
+      max-file-size: 50MB
+      max-request-size: 50MB
+
+  # MySQL 로컬 개발 환경 통신 세팅
+  datasource:
+    url: jdbc:mysql://localhost:3306/voicepick_db?serverTimezone=Asia/Seoul&useSSL=false&allowPublicKeyRetrieval=true
+    username: root
+    password: root
+    driver-class-name: com.mysql.cj.jdbc.Driver
+
+  # Redis 로컬 개발 환경 통신 세팅 (Task Queue)
+  data:
+    redis:
+      host: localhost
+      port: 6379
+
+  # JPA 및 Hibernate 옵션
+  jpa:
+    hibernate:
+      ddl-auto: update      # 애플리케이션 실행 시 Entity를 분석하여 DB 테이블 스키마 자동 수정
+    show-sql: true          # 실행되는 하이버네이트 로직을 쿼리로 콘솔 출력
+    properties:
+      hibernate:
+        format_sql: true    # 출력되는 쿼리를 보기 좋게 정렬(Formatting)
+
+logging:
+  level:
+    # 우리가 작성한 핵심 비즈니스 로직의 로그를 DEBUG 모드로 띄워 세밀한 관제 가능
+    com.MyVoicePick.demo: DEBUG
+    # 참고: 쿼리 실행 시 바인딩되는 Parameter를 보려면 org.hibernate.SQL 등을 TRACE로 볼 수 있지만 여기선 생략
