@@ -23,7 +23,8 @@ dependencies {
 	implementation 'org.springframework.boot:spring-boot-starter-web'
 	implementation 'com.fasterxml.jackson.core:jackson-databind'
 	implementation 'com.fasterxml.jackson.datatype:jackson-datatype-jsr310'
-	implementation 'io.awspring.cloud:spring-cloud-aws-starter-s3:3.1.1'
+	implementation platform('software.amazon.awssdk:bom:2.25.15')
+	implementation 'software.amazon.awssdk:s3'
 	compileOnly 'org.projectlombok:lombok'
 	runtimeOnly 'com.mysql:mysql-connector-j'
 	annotationProcessor 'org.projectlombok:lombok'
@@ -36,3 +37,4 @@ dependencies {
 tasks.named('test') {
 	useJUnitPlatform()
 }
+// Triggering VS Code Gradle Sync
