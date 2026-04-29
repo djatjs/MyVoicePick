@@ -2,6 +2,7 @@ package com.MyVoicePick.demo.controller;
 
 import com.MyVoicePick.demo.dto.TaskStatusResponse;
 import com.MyVoicePick.demo.service.AnalysisService;
+import com.MyVoicePick.demo.service.S3Uploader;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -19,6 +20,7 @@ import java.util.Map;
 public class AnalysisController {
 
     private final AnalysisService analysisService;
+    private final S3Uploader s3Uploader;
 
     /**
      * [엔드포인트 1] 음성 파일 분석 요청 (비동기)
@@ -31,12 +33,11 @@ public class AnalysisController {
             @RequestParam("userId") Long userId,
             @RequestParam("file") MultipartFile file
     ) {
-        // [Mock S3 업로드 로직]
-        // 실제로는 파일 스트림을 S3 버킷에 올린 뒤 URL을 받아와야 하지만, 현재는 가상 URL 문자열 생성으로 대체합니다.
-        String mockS3Url = "https://mock-s3-bucket.com/uploads/" + System.currentTimeMillis() + "_" + file.getOriginalFilename();
+        // S3에 실제 파일 업로드 후 반환된 URL 확보
+        String s3FileUrl = s3Uploader.uploadFile(file);
 
         // 서비스 호출을 통해 분석 태스크(PENDING)를 DB에 적재 & 큐잉 대기 후 영수증(UUID) 확보
-        String taskUuid = analysisService.requestAnalysis(userId, mockS3Url);
+        String taskUuid = analysisService.requestAnalysis(userId, s3FileUrl);
 
         // JSON 형태로 돌려주기 위해 Map 사용 (추후 CreateAnalysisResponse 같은 DTO 객체를 만들어 써도 좋습니다.)
         Map<String, String> responseBody = new HashMap<>();
