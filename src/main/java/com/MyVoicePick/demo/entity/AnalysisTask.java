@@ -7,6 +7,7 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 
 import java.time.LocalDateTime;
+import java.util.List;
 
 /**
  * 음성 파일 업로드부터 분석 완료까지의 전체 파이프라인 상태를 추적하는 Entity 클래스입니다.
@@ -54,6 +55,31 @@ public class AnalysisTask {
     @Column(name = "created_at", nullable = false, updatable = false)
     private LocalDateTime createdAt;
 
+    /**
+     * AI 파이썬 워커가 분석 후 생성한 목소리 성향 태그를 JSON 배열 문자열로 저장합니다.
+     * 예: ["#부드러운_중저음", "#감성_발라드_추천"]
+     * DB 컬럼 타입은 TEXT로, 직렬화/역직렬화는 Service 레이어에서 처리합니다.
+     */
+    @Column(name = "voice_tags", columnDefinition = "TEXT")
+    private String voiceTagsJson;
+
+    @Column(name = "similarity_score")
+    private Integer similarityScore;
+
+    @Column(name = "pitch_hz")
+    private Integer pitchHz;
+
+    @Column(name = "recommend_reason", columnDefinition = "TEXT")
+    private String recommendReason;
+
+    // [추가] 보컬 페르소나 (예: "새벽 라디오를 닮은 따뜻한 바리톤")
+    @Column(name = "vocal_persona", columnDefinition = "TEXT")
+    private String vocalPersona;
+
+    // [추가] 보컬 스탯 (JSON 문자열: warmth, clarity, power, rhythm, emotion)
+    @Column(name = "vocal_stats", columnDefinition = "TEXT")
+    private String vocalStatsJson;
+
     @Builder
     public AnalysisTask(String taskUuid, User user, String s3FileUrl, AnalysisStatus status) {
         this.taskUuid = taskUuid;
@@ -93,9 +119,15 @@ public class AnalysisTask {
         this.status = newStatus;
     }
 
-    public void completeTask(Song matchedSong) {
+    public void completeTask(Song matchedSong, String voiceTagsJson, Integer similarityScore, Integer pitchHz, String recommendReason, String vocalPersona, String vocalStatsJson) {
         this.status = AnalysisStatus.COMPLETED;
         this.matchedSong = matchedSong;
+        this.voiceTagsJson = voiceTagsJson;
+        this.similarityScore = similarityScore;
+        this.pitchHz = pitchHz;
+        this.recommendReason = recommendReason;
+        this.vocalPersona = vocalPersona;
+        this.vocalStatsJson = vocalStatsJson;
     }
 
     public void failTask() {

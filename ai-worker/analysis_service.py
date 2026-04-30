@@ -1,6 +1,7 @@
 import os
 import time
 import logging
+import math
 import boto3
 from urllib.parse import urlparse
 import sys
@@ -10,7 +11,7 @@ import shutil
 import json
 import librosa
 import numpy as np
-from sklearn.preprocessing import StandardScaler
+from numpy.linalg import norm
 
 from database import SessionLocal
 from models import Song
@@ -24,21 +25,221 @@ s3_client = boto3.client('s3')
 class AnalysisService:
     """
     실제 AI 분석 (보컬 분리, 특징 추출 등) 로직을 담당하는 서비스 클래스.
-    현재는 Mock(가짜) 로직으로 동작합니다.
     """
 
     @staticmethod
-    def process_audio(task_uuid: str, s3_file_url: str) -> int:
+    def generate_voice_tags(avg_pitch: float, avg_mfcc: np.ndarray) -> list:
         """
-        오디오 파일을 분석하고 매칭된 곡의 ID를 반환합니다.
-        
+        추출된 음성 특징 수치를 바탕으로 한글 UX 태그 리스트를 생성합니다.
+        해시태그의 언더스코어(_)를 제거하여 가독성을 높입니다.
+        """
+        tags = []
+
+        # --- 1. Pitch 기반 음역대 태그 ---
+        if avg_pitch < 130:
+            tags.append("#묵직한저음")
+        elif avg_pitch < 200:
+            tags.append("#부드러운보컬")
+        elif avg_pitch < 300:
+            tags.append("#맑은중고음")
+        else:
+            tags.append("#시원한고음")
+
+        # --- 2. MFCC 기반 장르 성향 태그 ---
+        mfcc_variance = float(np.var(avg_mfcc))
+        mfcc_low_energy = float(np.mean(avg_mfcc[1:4]))
+        mfcc_mid_energy = float(np.mean(avg_mfcc[4:8]))
+
+        if mfcc_variance < 200 and mfcc_low_energy > 0:
+            tags.append("#감성발라드")
+        elif mfcc_variance > 200 and mfcc_mid_energy > 0:
+            tags.append("#R&B소울")
+        elif mfcc_low_energy < 0:
+            tags.append("#어쿠스틱무드")
+        else:
+            tags.append("#트렌디한팝")
+
+        logger.info(f"[AnalysisService] 생성된 목소리 태그 (포맷팅 완료): {tags}")
+        return tags
+
+    @staticmethod
+    def cosine_similarity(vec_a: np.ndarray, vec_b: np.ndarray) -> float:
+        """
+        두 벡터 간의 코사인 유사도를 -1~1 사이로 반환합니다.
+
+        [설계 의도 - 블랙홀 버그 해결]
+        - 유클리디안 거리는 MFCC[0](에너지/음량)의 절대값이 커서
+          다른 모든 차원을 '덮어먹는' 현상이 발생합니다. (블랙홀 버그 원인)
+        - 코사인 유사도는 벡터의 방향(패턴/지문)만 비교하므로
+          절대 음량에 무관하게 목소리의 '음색 지문'을 비교합니다.
+        """
+        norm_a = norm(vec_a)
+        norm_b = norm(vec_b)
+        # 제로 벡터 예외 처리 (ZeroDivisionError 방지)
+        if norm_a == 0 or norm_b == 0:
+            return 0.0
+        return float(np.dot(vec_a, vec_b) / (norm_a * norm_b))
+
+    @staticmethod
+    def cosine_to_score(cosine_sim: float) -> int:
+        """
+        코사인 유사도(-1~1)를 사용자 친화적인 표시 점수(50~95%)로 변환합니다.
+        - cosine 1.0  -> 95%
+        - cosine 0.9  -> ~85%
+        - cosine 0.5  -> ~60%
+        - cosine < 0  -> 50% (floor)
+        """
+        score = 60 + (cosine_sim * 35)
+        return int(max(50, min(95, round(score))))
+
+    @staticmethod
+    def generate_recommend_reason(tags: list, artist: str, user_pitch: float, song_pitch: float, vocal_stats: dict) -> str:
+        """
+        추천 이유 텍스트에 피치 평균 대비 톤 설명과 감정 점수 근거를 추가합니다.
+        """
+        # 1) 톤(피치) 설명 – 일반 평균(165Hz) 대비
+        avg_base = 165.0
+        diff = user_pitch - avg_base
+        if diff > 30:
+            tone_desc = "뛰어난 하이톤"
+        elif diff > 10:
+            tone_desc = "약간 높은 하이톤"
+        elif diff < -30:
+            tone_desc = "낮은 로우톤"
+        elif diff < -10:
+            tone_desc = "약간 낮은 로우톤"
+        else:
+            tone_desc = "보통 톤"
+
+        # 2) 감정 수치(Emotion) 강조
+        emotion_score = vocal_stats.get("emotion") if isinstance(vocal_stats, dict) else None
+        emotion_part = f"감정 표현 수치({emotion_score}점)가 특히 돋보입니다. " if emotion_score is not None else ""
+
+        # 3) 기본 추천 문구
+        voice_style = tags[0].replace("#", "") if tags else ""
+        mood = tags[1].replace("#", "") if len(tags) > 1 else ""
+        pitch_diff = abs(user_pitch - song_pitch)
+        base_reason = f"당신의 {voice_style} 목소리는 {artist}의 {mood} 감성과 완벽하게 어울립니다. 이 곡을 통해 당신의 매력을 발견해보세요."
+
+        # 4) Pitch 차이 50Hz 이상이면 키(Key) 변경 추천 자동 추가
+        key_tip = " 다만, 원곡과 음역대 차이가 있으니 키(Key)를 조정해서 부르는 것을 강력히 추천해요!" if pitch_diff >= 50 else ""
+
+        return f"당신의 목소리는 {tone_desc}이며, {emotion_part}{base_reason}{key_tip}"
+
+    @staticmethod
+    def generate_vocal_persona(avg_pitch: float, avg_mfcc: np.ndarray, stats: dict) -> str:
+        """
+        다양한 페르소나(12~16개) 중 하나를 선택합니다.
+        - Pitch 구간 + 최고 스탯(TopStat) 조합을 기반으로 다층 조건문을 구성합니다.
+        """
+        top_stat = max(stats, key=stats.get)  # warmth, clarity, power, rhythm, emotion 중 최댓값 키
+        # 1) Pitch 구간
+        if avg_pitch < 140:
+            pitch_group = "low"
+        elif avg_pitch < 200:
+            pitch_group = "mid"
+        else:
+            pitch_group = "high"
+
+        # 2) 페르소나 매핑 (예시 14개)
+        persona_map = {
+            ("low", "power"): "폭발적인 에너지를 품은 록 보컬",
+            ("low", "warmth"): "깊은 울림의 저음 바리톤",
+            ("low", "clarity"): "깨끗한 저음의 클래식 테너",
+            ("mid", "power"): "파워풀한 소울 울림",
+            ("mid", "warmth"): "감성과 따뜻함이 어우러진 알찬 미드보이스",
+            ("mid", "clarity"): "맑고 투명한 미디엄 톤",
+            ("mid", "rhythm"): "리듬감이 살아있는 재즈 풍보컬",
+            ("high", "power"): "스카이 라인까지 치솟는 파워풀 팝",
+            ("high", "warmth"): "상큼하고 화사한 하이톤 테너",
+            ("high", "clarity"): "청명한 고음의 클래식 색소폰",
+            ("high", "rhythm"): "리듬감 넘치는 EDM 보컬",
+            ("high", "emotion"): "감정을 강렬히 전달하는 하이톤",
+            ("mid", "emotion"): "감정을 섬세히 표현하는 미드톤",
+            ("low", "emotion"): "감정이 깊게 울리는 로우톤",
+        }
+        # 기본값
+        default_persona = "특색 있는 보컬"
+        return persona_map.get((pitch_group, top_stat), default_persona)
+
+    @staticmethod
+    def generate_vocal_stats(avg_mfcc: np.ndarray, avg_pitch: float) -> dict:
+        """
+        5각 스탯을 실제 음향학적 메트릭으로 계산하고, 일반 성인(남·여) 평균 범위에 대한 Min‑Max 스케일링을 적용합니다.
+        * warmth   – 저주파 대역 에너지 비율 (MFCC[1:4] / 전체 평균)
+        * clarity  – Spectral Flatness 역수 (1 - SF) 로 추정, 0~1 사이 → 0~100
+        * power    – RMS 에너지 (sqrt(mean(mfcc**2)))
+        * rhythm   – 고주파 변동성 (MFCC[8:13] 분산)
+        * emotion  – Pitch 표준편차 (※ 현재 구현에서는 평균 피치를 사용해 대략 추정)
+        """
+        def clamp(v, lo=0, hi=100):
+            return max(lo, min(hi, int(v)))
+
+        # 1) warmth – 저주파 에너지 비율
+        low_energy = np.mean(avg_mfcc[1:4])
+        total_energy = np.mean(np.abs(avg_mfcc))
+        warmth_raw = (low_energy / (total_energy + 1e-9)) * 100  # 0~100 비율
+
+        # 2) clarity – spectral flatness 역수
+        mag = np.abs(avg_mfcc) + 1e-9
+        geometric = np.exp(np.mean(np.log(mag)))
+        arithmetic = np.mean(mag)
+        sf = geometric / arithmetic  # 0~1, 낮을수록 명료
+        clarity_raw = (1 - sf) * 100
+
+        # 3) power – RMS 에너지
+        power_raw = np.sqrt(np.mean(np.square(avg_mfcc))) * 10  # 스케일 보정
+
+        # 4) rhythm – 고주파 변동성
+        high_var = np.var(avg_mfcc[8:13])
+        rhythm_raw = high_var * 20  # 스케일 보정
+
+        # 5) emotion – Pitch 변동성 (현재 평균 피치만으로 대체, 범위 80~400)
+        # 가정: 평균보다 높을수록 변동성이 커진다고 가정(단순화)
+        emotion_raw = ((avg_pitch - 120) / (400 - 120)) * 100
+
+        # ---- Min‑Max 스케일링 (성인 평균 범위 가정) ----
+        # 각 메트릭 별 기대 최소/최대값 (경험값)
+        ranges = {
+            "warmth": (10, 90),
+            "clarity": (20, 80),
+            "power": (15, 95),
+            "rhythm": (5, 70),
+            "emotion": (10, 90),
+        }
+        def minmax_scale(val, name):
+            lo, hi = ranges[name]
+            scaled = (val - lo) / (hi - lo) * 100
+            return clamp(scaled)
+
+        warmth = minmax_scale(warmth_raw, "warmth")
+        clarity = minmax_scale(clarity_raw, "clarity")
+        power = minmax_scale(power_raw, "power")
+        rhythm = minmax_scale(rhythm_raw, "rhythm")
+        emotion = minmax_scale(emotion_raw, "emotion")
+
+        return {
+            "warmth": warmth,
+            "clarity": clarity,
+            "power": power,
+            "rhythm": rhythm,
+            "emotion": emotion,
+        }
+
+
+
+    @staticmethod
+    def process_audio(task_uuid: str, s3_file_url: str) -> dict:
+        """
+        오디오 파일을 분석하고 매칭 결과와 목소리 태그를 반환합니다.
+
         Args:
             task_uuid (str): 작업 고유 식별자
             s3_file_url (str): 다운로드할 오디오 파일의 S3 URL
-            
+
         Returns:
-            int: 매칭된 곡의 ID (matched_song_id)
-            
+            dict: { "matched_song_id": int, "voice_tags": List[str] }
+
         Raises:
             Exception: 분석 중 오류가 발생한 경우
         """
@@ -117,11 +318,14 @@ class AnalysisService:
                 valid_f0 = f0[~np.isnan(f0)] # NaN 값 제외
                 avg_pitch = float(np.mean(valid_f0)) if len(valid_f0) > 0 else 0.0
                 logger.info(f"[AnalysisService] 추출된 평균 Pitch (F0): {avg_pitch:.2f} Hz")
-                
+
                 # 2) MFCC 추출: 목소리의 음색을 파악하는 20차원 배열 생성
                 mfcc = librosa.feature.mfcc(y=y, sr=sr, n_mfcc=20)
                 avg_mfcc = np.mean(mfcc, axis=1) # 프레임별 평균을 구해 1차원 배열로 변환
                 logger.info(f"[AnalysisService] 추출된 평균 MFCC (20 dims): {avg_mfcc}")
+
+                # 2-1) 목소리 프로파일링 태그 생성
+                voice_tags = AnalysisService.generate_voice_tags(avg_pitch, avg_mfcc)
                 
                 # 4. DB 연동: 곡(Song) 데이터 로드 및 파싱
                 logger.info("[AnalysisService] DB에서 전체 곡(Song) 데이터를 조회합니다.")
@@ -133,68 +337,88 @@ class AnalysisService:
                         logger.warning("[AnalysisService] DB에 곡 데이터가 하나도 없습니다. 매칭을 건너뜁니다.")
                         matched_song_id = None
                     else:
-                        # 5. 정규화(StandardScaler) 및 유클리디안 거리 계산
-                        logger.info("[AnalysisService] 스케일 차이 방지를 위해 정규화를 수행하고 거리를 계산합니다.")
-                        
-                        all_features = []
-                        song_ids = []
-                        
-                        # 5-1) 유저 특징 (Index 0)
-                        user_features = np.append(avg_mfcc, avg_pitch)
-                        all_features.append(user_features)
-                        
-                        # 5-2) DB 곡 특징 파싱 (Index 1 ~)
+                        # =========================================================
+                        # 5. 코사인 유사도(Cosine Similarity) 기반 매칭
+                        # [알고리즘 변경 이유]
+                        # - 기존 StandardScaler + 유클리디안 방식은 MFCC[0](에너지)의
+                        #   절대값이 커서 다른 모든 차원을 씹어먹어
+                        #   항상 같은 곡만 매칭되는 '블랙홀 현상' 발생.
+                        # - 코사인 유사도는 벡터의 방향(패턴)만 비교하므로
+                        #   절대 음량과 무관하게 목소리의 '음색 지문'을 비교합니다.
+                        # - Pitch는 매칭에서 제외하고 키 변경 추천 지표로만 사용합니다.
+                        # =========================================================
+                        logger.info("[AnalysisService] MFCC 코사인 유사도 기반 매칭 시작...")
+
+                        best_song_id = None
+                        best_cosine = -1.0      # 코사인 값은 높을수록 유사
+                        best_song_pitch = 0.0   # 키 변경 추천을 위한 저장
+
                         for song in songs:
-                            # DB에서 Text(JSON) 형태로 저장된 MFCC 배열 파싱
                             try:
-                                if song.mfcc_vector:
-                                    song_mfcc = np.array(json.loads(song.mfcc_vector))
-                                else:
-                                    song_mfcc = np.zeros(20) # 데이터 누락 시 기본값
-                            except Exception as e:
-                                logger.error(f"[AnalysisService] Song ID {song.id} 의 MFCC 파싱 실패: {e}")
+                                song_mfcc = np.array(json.loads(song.mfcc_vector)) if song.mfcc_vector else np.zeros(20)
+                            except Exception:
+                                logger.warning(f"[AnalysisService] Song ID {song.id} MFCC 파싱 실패, 0 벡터 사용")
                                 song_mfcc = np.zeros(20)
-                                
-                            song_pitch = song.pitch if song.pitch is not None else 0.0
-                            
-                            s_features = np.append(song_mfcc, song_pitch)
-                            all_features.append(s_features)
-                            song_ids.append(song.id)
-                            
-                        # 5-3) StandardScaler 적용
-                        # Pitch(100~300단위)가 MFCC(-20~20단위)를 지배하지 않도록 동일 선상에 놓습니다.
-                        scaler = StandardScaler()
-                        normalized_features = scaler.fit_transform(all_features)
-                        
-                        # 정규화된 유저 특징 (0번째 인덱스)
-                        norm_user_features = normalized_features[0]
-                        
-                        closest_song_id = None
-                        min_distance = float('inf')
-                        
-                        # 5-4) 정규화된 데이터로 유클리디안 거리 비교 (1번째 인덱스부터 DB 곡들)
-                        for idx, norm_song_features in enumerate(normalized_features[1:]):
-                            song_id = song_ids[idx]
-                            
-                            distance = np.linalg.norm(norm_user_features - norm_song_features)
-                            logger.info(f"[AnalysisService] Song ID {song_id} 와의 거리: {distance:.4f}")
-                            
-                            if distance < min_distance:
-                                min_distance = distance
-                                closest_song_id = song_id
-                                
-                        matched_song_id = closest_song_id
-                        logger.info(f"[AnalysisService] 분석 완료! 최종 매칭 곡 ID: {matched_song_id} (최소 거리: {min_distance:.4f})")
-                        
+
+                            cosine = AnalysisService.cosine_similarity(avg_mfcc, song_mfcc)
+                            song_pitch_val = song.pitch if song.pitch is not None else 0.0
+
+                            logger.info(f"[AnalysisService] Song ID {song.id} | MFCC 코사인: {cosine:.4f} | Pitch: {song_pitch_val:.1f}Hz")
+
+                            if cosine > best_cosine:
+                                best_cosine = cosine
+                                best_song_id = song.id
+                                best_song_pitch = song_pitch_val
+
+                        matched_song_id = best_song_id
+                        logger.info(f"[AnalysisService] 최종 매칭 완료! Song ID: {matched_song_id} | 코사인 유사도: {best_cosine:.4f}")
+
+                        # 세션이 닫히기 전에 아티스트 정보를 미리 조회합니다.
+                        matched_song = db.query(Song).filter(Song.id == matched_song_id).first() if matched_song_id else None
+                        matched_artist = matched_song.artist if matched_song else "알 수 없는 아티스트"
+
                 finally:
                     # DB 세션을 반드시 반환하여 커넥션 풀을 관리합니다.
                     db.close()
-                
+
             else:
                 logger.error(f"[AnalysisService] 보컬 파일을 찾을 수 없습니다: {vocals_path}")
                 raise FileNotFoundError(f"보컬 분리 결과물(vocals.wav)이 생성되지 않았습니다.")
+
+            # 매칭 결과, 목소리 태그, 추가 분석 데이터를 함께 반환합니다.
+            vt = voice_tags if 'voice_tags' in locals() else []
+            ap = avg_pitch if 'avg_pitch' in locals() else 0.0
+            am = avg_mfcc if 'avg_mfcc' in locals() else np.zeros(20)
+
+            # [신규] 보컬 스탯 생성 (추천 사유와 페르소나의 근거가 됨)
+            vocal_stats = AnalysisService.generate_vocal_stats(am, ap)
             
-            return matched_song_id
+            # [신규] 보컬 페르소나 생성 (stats 기반)
+            vocal_persona = AnalysisService.generate_vocal_persona(ap, am, vocal_stats)
+
+            similarity_score = AnalysisService.cosine_to_score(best_cosine) if matched_song_id else 0
+            
+            # [신규] 추천 사유 생성 (stats 포함)
+            recommend_reason = AnalysisService.generate_recommend_reason(
+                vt,
+                matched_artist if 'matched_artist' in locals() else "알 수 없는 아티스트",
+                ap,
+                best_song_pitch if 'best_song_pitch' in locals() else 0.0,
+                vocal_stats
+            ) if matched_song_id else ""
+
+            logger.info(f"[AnalysisService] 보컬 페르소나: {vocal_persona}")
+            logger.info(f"[AnalysisService] 보컬 스탯: {vocal_stats}")
+
+            return {
+                "matched_song_id": matched_song_id,
+                "voice_tags": vt,
+                "similarity_score": similarity_score,
+                "pitch_hz": int(ap),
+                "recommend_reason": recommend_reason,
+                "vocal_persona": vocal_persona,
+                "vocal_stats": vocal_stats
+            }
             
         except Exception as e:
             logger.error(f"[AnalysisService] '{task_uuid}' 분석 중 오류 발생: {e}")

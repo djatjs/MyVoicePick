@@ -38,13 +38,36 @@ def process_queue_message(message_data: dict):
     db = SessionLocal()
     
     try:
-        # 1. DB에서 작업 조회
-        # task_uuid를 통해 현재 DB에 저장된 작업을 찾습니다.
-        task = db.query(AnalysisTask).filter(AnalysisTask.task_uuid == task_uuid).first()
-        
+        # 1. DB에서 작업 조회 (레이스 컨디션 방어용 재시도 로직)
+        #
+        # [설계 의도]
+        # Spring Boot가 DB 커밋 완료 후 Redis에 발행하지만,
+        # 네트워크 지연이나 DB 복제 지연 등으로 인해
+        # 파이썬이 조회 시점에 아직 레코드가 보이지 않는 경우가 있습니다.
+        # 최대 3회, 0.5초 간격으로 재시도하여 이 타이밍 문제를 방어합니다.
+        MAX_RETRIES = 3
+        task = None
+
+        for attempt in range(1, MAX_RETRIES + 1):
+            task = db.query(AnalysisTask).filter(AnalysisTask.task_uuid == task_uuid).first()
+            if task:
+                break
+            if attempt < MAX_RETRIES:
+                logger.warning(
+                    f"DB에서 작업을 찾지 못했습니다. "
+                    f"{attempt}/{MAX_RETRIES}회 시도, 0.5초 후 재시도... taskUuid: {task_uuid}"
+                )
+                time.sleep(0.5)
+                # 캐시된 세션 결과가 남아있을 수 있으므로 세션을 갱신합니다.
+                db.expire_all()
+
         if not task:
-            logger.error(f"DB에서 해당 작업을 찾을 수 없습니다. taskUuid: {task_uuid}")
+            logger.error(
+                f"{MAX_RETRIES}회 재시도 후에도 DB에서 작업을 찾을 수 없습니다. "
+                f"taskUuid: {task_uuid}"
+            )
             return
+
             
         # 2. 상태를 PROCESSING으로 변경
         logger.info(f"작업 시작. taskUuid: {task_uuid}")
@@ -52,14 +75,27 @@ def process_queue_message(message_data: dict):
         db.commit()
         
         # 3. AI 분석 서비스 호출
-        # 분석이 완료되면 매칭된 곡의 ID를 반환받습니다.
-        matched_song_id = AnalysisService.process_audio(task_uuid, s3_file_url)
-        
+        result = AnalysisService.process_audio(task_uuid, s3_file_url)
+        matched_song_id = result["matched_song_id"]
+        voice_tags = result.get("voice_tags", [])
+        similarity_score = result.get("similarity_score", 0)
+        pitch_hz = result.get("pitch_hz", 0)
+        recommend_reason = result.get("recommend_reason", "")
+        vocal_persona = result.get("vocal_persona", "")
+        vocal_stats = result.get("vocal_stats", {})
+
         # 4. 분석 성공 시: 상태를 COMPLETED로 변경 및 결과 업데이트
         task.status = "COMPLETED"
         task.matched_song_id = matched_song_id
+        task.voice_tags = json.dumps(voice_tags, ensure_ascii=False)
+        task.similarity_score = similarity_score
+        task.pitch_hz = pitch_hz
+        task.recommend_reason = recommend_reason
+        task.vocal_persona = vocal_persona
+        task.vocal_stats = json.dumps(vocal_stats, ensure_ascii=False)  # dict → JSON 문자열
+
         db.commit()
-        logger.info(f"작업 완료. taskUuid: {task_uuid}, matchedSongId: {matched_song_id}")
+        logger.info(f"작업 완료. taskUuid: {task_uuid}, matchedSongId: {matched_song_id}, similarity: {similarity_score}%, persona: {vocal_persona}")
         
     except Exception as e:
         # 5. 분석 실패 시: 상태를 FAILED로 변경

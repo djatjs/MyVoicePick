@@ -19,6 +19,15 @@ class AnalysisTask(Base):
     
     matched_song_id = Column(BigInteger, nullable=True)
     created_at = Column(DateTime, nullable=False)
+    # AI 분석 결과로 생성된 목소리 성향 태그 (JSON 배열 문자열로 저장)
+    voice_tags = Column(Text, nullable=True)
+
+    # [추가] 분석 고도화 데이터
+    similarity_score = Column(BigInteger, nullable=True)
+    pitch_hz = Column(BigInteger, nullable=True)
+    recommend_reason = Column(Text, nullable=True)
+    vocal_persona = Column(Text, nullable=True)      # 감성 보컬 타이틀 문자열
+    vocal_stats = Column(Text, nullable=True)        # 5가지 특성 수치 (JSON 문자열)
 
 class Song(Base):
     """
@@ -27,5 +36,9 @@ class Song(Base):
     __tablename__ = "songs"
 
     id = Column(BigInteger, primary_key=True, index=True)
+    title = Column(String(255), nullable=True)
+    artist = Column(String(255), nullable=True)
+    album_cover_url = Column(String(500), nullable=True)
+    preview_url = Column(String(500), nullable=True)
     pitch = Column(Float, nullable=True)
     mfcc_vector = Column(Text, nullable=True)
