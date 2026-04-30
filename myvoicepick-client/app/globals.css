@@ -1,0 +1,46 @@
+@import "tailwindcss";
+
+@theme {
+  --font-sans: var(--font-geist-sans);
+  --font-mono: var(--font-geist-mono);
+}
+
+:root {
+  --background: #09090b; /* zinc-950 */
+  --foreground: #fafafa; /* zinc-50 */
+}
+
+body {
+  background-color: var(--background);
+  color: var(--foreground);
+  font-family: Arial, Helvetica, sans-serif;
+  margin: 0;
+  padding: 0;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* 추가적인 애니메이션 유틸리티 (Tailwind v4에서 필요 시 사용) */
+@layer utilities {
+  .animate-in {
+    animation: animate-in 0.5s ease-out forwards;
+  }
+  .fade-in {
+    opacity: 0;
+    animation-name: fadeIn;
+  }
+  .slide-in-from-bottom-4 {
+    transform: translateY(1rem);
+    animation-name: slideInBottom;
+  }
+
+  @keyframes fadeIn {
+    from { opacity: 0; }
+    to { opacity: 1; }
+  }
+
+  @keyframes slideInBottom {
+    from { transform: translateY(1rem); opacity: 0; }
+    to { transform: translateY(0); opacity: 1; }
+  }
+}

@@ -1,4 +1,4 @@
-from sqlalchemy import Column, BigInteger, String, DateTime
+from sqlalchemy import Column, BigInteger, String, DateTime, Float, Text
 from database import Base
 
 class AnalysisTask(Base):
@@ -19,3 +19,13 @@ class AnalysisTask(Base):
     
     matched_song_id = Column(BigInteger, nullable=True)
     created_at = Column(DateTime, nullable=False)
+
+class Song(Base):
+    """
+    실제 DB의 `songs` 테이블과 매핑되는 모델. (테이블명 및 구조 가정)
+    """
+    __tablename__ = "songs"
+
+    id = Column(BigInteger, primary_key=True, index=True)
+    pitch = Column(Float, nullable=True)
+    mfcc_vector = Column(Text, nullable=True)

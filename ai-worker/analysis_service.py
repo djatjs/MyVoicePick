@@ -7,6 +7,13 @@ import sys
 import re
 import subprocess
 import shutil
+import json
+import librosa
+import numpy as np
+from sklearn.preprocessing import StandardScaler
+
+from database import SessionLocal
+from models import Song
 
 # 로거 설정
 logger = logging.getLogger(__name__)
@@ -93,19 +100,99 @@ class AnalysisService:
             original_filename = os.path.splitext(os.path.basename(local_file_path))[0]
             vocals_path = os.path.join(output_dir, "htdemucs", original_filename, "vocals.wav")
             
-            # 3. 오디오 특징 추출 및 유사도 비교 (현재는 맛보기용 존재 여부 확인)
+            # 3. 오디오 특징 추출 (Pitch, MFCC)
             logger.info(f"[AnalysisService] 분리된 보컬 파일 존재 여부 확인 중...")
             
             if os.path.exists(vocals_path):
                 logger.info(f"[AnalysisService] 보컬 파일 추출 성공: {vocals_path}")
-                # TODO: 추후 이 vocals_path 파일을 로드하여 MFCC 등 실제 오디오 특징(Feature) 추출 및 비교 로직을 추가합니다.
+                
+                # librosa를 사용한 특징 추출
+                logger.info("[AnalysisService] 보컬의 오디오 특징(Pitch, MFCC) 추출을 시작합니다.")
+                
+                # 오디오 파일 로드 (sr=None으로 원본 샘플링 레이트 유지)
+                y, sr = librosa.load(vocals_path, sr=None)
+                
+                # 1) Pitch (F0) 추출: 기본 주파수 평균값 계산 (사람 목소리 음역대 C2 ~ C7 기준)
+                f0, voiced_flag, voiced_probs = librosa.pyin(y, fmin=librosa.note_to_hz('C2'), fmax=librosa.note_to_hz('C7'))
+                valid_f0 = f0[~np.isnan(f0)] # NaN 값 제외
+                avg_pitch = float(np.mean(valid_f0)) if len(valid_f0) > 0 else 0.0
+                logger.info(f"[AnalysisService] 추출된 평균 Pitch (F0): {avg_pitch:.2f} Hz")
+                
+                # 2) MFCC 추출: 목소리의 음색을 파악하는 20차원 배열 생성
+                mfcc = librosa.feature.mfcc(y=y, sr=sr, n_mfcc=20)
+                avg_mfcc = np.mean(mfcc, axis=1) # 프레임별 평균을 구해 1차원 배열로 변환
+                logger.info(f"[AnalysisService] 추출된 평균 MFCC (20 dims): {avg_mfcc}")
+                
+                # 4. DB 연동: 곡(Song) 데이터 로드 및 파싱
+                logger.info("[AnalysisService] DB에서 전체 곡(Song) 데이터를 조회합니다.")
+                db = SessionLocal()
+                try:
+                    songs = db.query(Song).all()
+                    
+                    if not songs:
+                        logger.warning("[AnalysisService] DB에 곡 데이터가 하나도 없습니다. 매칭을 건너뜁니다.")
+                        matched_song_id = None
+                    else:
+                        # 5. 정규화(StandardScaler) 및 유클리디안 거리 계산
+                        logger.info("[AnalysisService] 스케일 차이 방지를 위해 정규화를 수행하고 거리를 계산합니다.")
+                        
+                        all_features = []
+                        song_ids = []
+                        
+                        # 5-1) 유저 특징 (Index 0)
+                        user_features = np.append(avg_mfcc, avg_pitch)
+                        all_features.append(user_features)
+                        
+                        # 5-2) DB 곡 특징 파싱 (Index 1 ~)
+                        for song in songs:
+                            # DB에서 Text(JSON) 형태로 저장된 MFCC 배열 파싱
+                            try:
+                                if song.mfcc_vector:
+                                    song_mfcc = np.array(json.loads(song.mfcc_vector))
+                                else:
+                                    song_mfcc = np.zeros(20) # 데이터 누락 시 기본값
+                            except Exception as e:
+                                logger.error(f"[AnalysisService] Song ID {song.id} 의 MFCC 파싱 실패: {e}")
+                                song_mfcc = np.zeros(20)
+                                
+                            song_pitch = song.pitch if song.pitch is not None else 0.0
+                            
+                            s_features = np.append(song_mfcc, song_pitch)
+                            all_features.append(s_features)
+                            song_ids.append(song.id)
+                            
+                        # 5-3) StandardScaler 적용
+                        # Pitch(100~300단위)가 MFCC(-20~20단위)를 지배하지 않도록 동일 선상에 놓습니다.
+                        scaler = StandardScaler()
+                        normalized_features = scaler.fit_transform(all_features)
+                        
+                        # 정규화된 유저 특징 (0번째 인덱스)
+                        norm_user_features = normalized_features[0]
+                        
+                        closest_song_id = None
+                        min_distance = float('inf')
+                        
+                        # 5-4) 정규화된 데이터로 유클리디안 거리 비교 (1번째 인덱스부터 DB 곡들)
+                        for idx, norm_song_features in enumerate(normalized_features[1:]):
+                            song_id = song_ids[idx]
+                            
+                            distance = np.linalg.norm(norm_user_features - norm_song_features)
+                            logger.info(f"[AnalysisService] Song ID {song_id} 와의 거리: {distance:.4f}")
+                            
+                            if distance < min_distance:
+                                min_distance = distance
+                                closest_song_id = song_id
+                                
+                        matched_song_id = closest_song_id
+                        logger.info(f"[AnalysisService] 분석 완료! 최종 매칭 곡 ID: {matched_song_id} (최소 거리: {min_distance:.4f})")
+                        
+                finally:
+                    # DB 세션을 반드시 반환하여 커넥션 풀을 관리합니다.
+                    db.close()
+                
             else:
                 logger.error(f"[AnalysisService] 보컬 파일을 찾을 수 없습니다: {vocals_path}")
                 raise FileNotFoundError(f"보컬 분리 결과물(vocals.wav)이 생성되지 않았습니다.")
-            
-            # 4. 완료: 더미 데이터로 1번 곡이 매칭되었다고 가정
-            matched_song_id = 1
-            logger.info(f"[AnalysisService] 분석 완료. 매칭된 곡 ID: {matched_song_id}")
             
             return matched_song_id
             
