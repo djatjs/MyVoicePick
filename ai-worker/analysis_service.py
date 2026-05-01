@@ -128,12 +128,12 @@ class AnalysisService:
 
     @staticmethod
     def generate_vocal_persona(avg_pitch: float, avg_mfcc: np.ndarray, stats: dict) -> str:
+        """Top 2 스탯을 조합해 페르소나를 결정합니다.
+        - Pitch 구간 (low/mid/high) 를 먼저 판정합니다.
+        - stats 딕셔너리에서 점수가 높은 두 개의 키를 추출합니다.
+        - (pitch_group, stat1, stat2) 조합에 따라 다양한 감성 타이틀을 매핑합니다.
         """
-        다양한 페르소나(12~16개) 중 하나를 선택합니다.
-        - Pitch 구간 + 최고 스탯(TopStat) 조합을 기반으로 다층 조건문을 구성합니다.
-        """
-        top_stat = max(stats, key=stats.get)  # warmth, clarity, power, rhythm, emotion 중 최댓값 키
-        # 1) Pitch 구간
+        # 1) Pitch 구간 판정
         if avg_pitch < 140:
             pitch_group = "low"
         elif avg_pitch < 200:
@@ -141,92 +141,150 @@ class AnalysisService:
         else:
             pitch_group = "high"
 
-        # 2) 페르소나 매핑 (예시 14개)
+        # 2) 상위 2 스탯 추출 (점수 내림차순)
+        sorted_stats = sorted(stats.items(), key=lambda x: x[1], reverse=True)
+        top_two = [k for k, _ in sorted_stats[:2]] if len(sorted_stats) >= 2 else [sorted_stats[0][0]]
+        # 정렬된 튜플 키 생성 (항상 알파벳 순서) – 중복 방지를 위해 정렬
+        combo_key = (pitch_group, *sorted(top_two))
+
+        # 3) 페르소나 매핑 (최소 15개 이상)
         persona_map = {
-            ("low", "power"): "폭발적인 에너지를 품은 록 보컬",
-            ("low", "warmth"): "깊은 울림의 저음 바리톤",
-            ("low", "clarity"): "깨끗한 저음의 클래식 테너",
-            ("mid", "power"): "파워풀한 소울 울림",
-            ("mid", "warmth"): "감성과 따뜻함이 어우러진 알찬 미드보이스",
-            ("mid", "clarity"): "맑고 투명한 미디엄 톤",
-            ("mid", "rhythm"): "리듬감이 살아있는 재즈 풍보컬",
-            ("high", "power"): "스카이 라인까지 치솟는 파워풀 팝",
-            ("high", "warmth"): "상큼하고 화사한 하이톤 테너",
-            ("high", "clarity"): "청명한 고음의 클래식 색소폰",
-            ("high", "rhythm"): "리듬감 넘치는 EDM 보컬",
-            ("high", "emotion"): "감정을 강렬히 전달하는 하이톤",
-            ("mid", "emotion"): "감정을 섬세히 표현하는 미드톤",
-            ("low", "emotion"): "감정이 깊게 울리는 로우톤",
+            ("low", "power", "warmth"): "깊고 강렬한 저음 바리톤",
+            ("low", "power", "clarity"): "깨끗한 저음 파워 보컬",
+            ("low", "warmth", "emotion"): "감성적인 저음 서정가",
+            ("mid", "power", "rhythm"): "역동적인 리듬감 미드보이스",
+            ("mid", "warmth", "clarity"): "부드럽고 투명한 중음 볼륨",
+            ("mid", "emotion", "clarity"): "섬세한 감정 표현의 미드톤",
+            ("high", "power", "rhythm"): "스카이 파워와 박자를 겸비한 하이톤",
+            ("high", "warmth", "emotion"): "따뜻하고 감정이 풍부한 고음 스타",
+            ("high", "clarity", "rhythm"): "청명한 고음과 리듬이 살아있는 EDM 보컬",
+            ("high", "power", "clarity"): "고음에서 폭발적인 선명도와 힘",
+            ("mid", "power", "warmth"): "알찬 중음과 따뜻함이 어우러진 소울",
+            ("low", "rhythm", "emotion"): "저음 리듬과 감정의 조화로운 서사",
+            ("mid", "rhythm", "clarity"): "리듬감과 투명함이 돋보이는 재즈 보컬",
+            ("high", "emotion", "warmth"): "감성 고음의 포근함",
+            ("mid", "emotion", "power"): "힘있는 감정 표현의 중음",
         }
-        # 기본값
         default_persona = "특색 있는 보컬"
-        return persona_map.get((pitch_group, top_stat), default_persona)
+        return persona_map.get(combo_key, default_persona)
+
+    # @staticmethod
+    # def generate_vocal_stats(raw_features: dict) -> dict:
+    #     def clamp(v, lo=0, hi=100):
+    #         return max(lo, min(hi, int(v)))
+
+    #     warmth_raw = (low_energy / (total_energy + 1e-9)) * 100  # 0~100 비율
+
+    #     # 2) clarity – spectral flatness 역수
+    #     mag = np.abs(avg_mfcc) + 1e-9
+    #     geometric = np.exp(np.mean(np.log(mag)))
+    #     arithmetic = np.mean(mag)
+    #     sf = geometric / arithmetic  # 0~1, 낮을수록 명료
+    #     clarity_raw = (1 - sf) * 100
+
+    #     # 3) power – RMS 에너지
+    #     power_raw = np.sqrt(np.mean(np.square(avg_mfcc))) * 10  # 스케일 보정
+
+    #     # 4) rhythm – 고주파 변동성
+    #     high_var = np.var(avg_mfcc[8:13])
+    #     rhythm_raw = high_var * 20  # 스케일 보정
+
+    #     # 5) emotion – Pitch 변동성 (현재 평균 피치만으로 대체, 범위 80~400)
+    #     # 가정: 평균보다 높을수록 변동성이 커진다고 가정(단순화)
+    #     emotion_raw = ((avg_pitch - 120) / (400 - 120)) * 100
+
+    #     # ---- Min‑Max 스케일링 (성인 평균 범위 가정) ----
+    #     # 각 메트릭 별 기대 최소/최대값 (경험값)
+    #     ranges = {
+    #         "warmth": (10, 90),
+    #         "clarity": (20, 80),
+    #         "power": (15, 95),
+    #         "rhythm": (5, 70),
+    #         "emotion": (10, 90),
+    #     }
+    #     def minmax_scale(val, name):
+    #         lo, hi = ranges[name]
+    #         scaled = (val - lo) / (hi - lo) * 100
+    #         return clamp(scaled)
+
+    #     warmth = minmax_scale(warmth_raw, "warmth")
+    #     clarity = minmax_scale(clarity_raw, "clarity")
+    #     power = minmax_scale(power_raw, "power")
+    #     rhythm = minmax_scale(rhythm_raw, "rhythm")
+    #     emotion = minmax_scale(emotion_raw, "emotion")
+
+    #     return {
+        
+    #         "warmth": warmth,
+    #         "clarity": clarity,
+    #         "power": power,
+    #         "rhythm": rhythm,
+    #         "emotion": emotion,
+    #     }
 
     @staticmethod
-    def generate_vocal_stats(avg_mfcc: np.ndarray, avg_pitch: float) -> dict:
-        """
-        5각 스탯을 실제 음향학적 메트릭으로 계산하고, 일반 성인(남·여) 평균 범위에 대한 Min‑Max 스케일링을 적용합니다.
-        * warmth   – 저주파 대역 에너지 비율 (MFCC[1:4] / 전체 평균)
-        * clarity  – Spectral Flatness 역수 (1 - SF) 로 추정, 0~1 사이 → 0~100
-        * power    – RMS 에너지 (sqrt(mean(mfcc**2)))
-        * rhythm   – 고주파 변동성 (MFCC[8:13] 분산)
-        * emotion  – Pitch 표준편차 (※ 현재 구현에서는 평균 피치를 사용해 대략 추정)
-        """
+    def extract_audio_features(y: np.ndarray, sr: int) -> dict:
+        """Librosa 로부터 핵심 음향 지표들을 모두 추출한다."""
+        # 1. Pitch & Emotion
+        f0, _, _ = librosa.pyin(y, fmin=librosa.note_to_hz('C2'), fmax=librosa.note_to_hz('C7'))
+        valid_f0 = f0[~np.isnan(f0)]
+        avg_pitch = float(np.mean(valid_f0)) if valid_f0.size > 0 else 0.0
+        emotion = float(np.std(valid_f0)) if valid_f0.size > 0 else 0.0
+
+        # 2. Power (RMS)
+        rms = librosa.feature.rms(y=y)
+        power = float(np.mean(rms))
+
+        # 3. Rhythm (Onset)
+        onset_env = librosa.onset.onset_strength(y=y, sr=sr)
+        rhythm = float(np.std(onset_env))
+
+        # 4. Clarity (Spectral Flatness)
+        sf = librosa.feature.spectral_flatness(y=y)
+        clarity = float(np.mean(sf))
+
+        # 5. Warmth & MFCC
+        mfcc = librosa.feature.mfcc(y=y, sr=sr, n_mfcc=20)
+        avg_mfcc = np.mean(mfcc, axis=1)
+        warmth = float(np.mean(avg_mfcc[1:4]))
+
+        return {
+            "pitch": avg_pitch,
+            "mfcc": avg_mfcc,
+            "emotion": emotion,
+            "power": power,
+            "rhythm": rhythm,
+            "clarity": clarity,
+            "warmth": warmth,
+        }
+
+    @staticmethod
+    def generate_vocal_stats(raw_features: dict) -> dict:
+        """Raw 음향 지표를 0~100 점수로 정규화합니다."""
         def clamp(v, lo=0, hi=100):
             return max(lo, min(hi, int(v)))
 
-        # 1) warmth – 저주파 에너지 비율
-        low_energy = np.mean(avg_mfcc[1:4])
-        total_energy = np.mean(np.abs(avg_mfcc))
-        warmth_raw = (low_energy / (total_energy + 1e-9)) * 100  # 0~100 비율
-
-        # 2) clarity – spectral flatness 역수
-        mag = np.abs(avg_mfcc) + 1e-9
-        geometric = np.exp(np.mean(np.log(mag)))
-        arithmetic = np.mean(mag)
-        sf = geometric / arithmetic  # 0~1, 낮을수록 명료
-        clarity_raw = (1 - sf) * 100
-
-        # 3) power – RMS 에너지
-        power_raw = np.sqrt(np.mean(np.square(avg_mfcc))) * 10  # 스케일 보정
-
-        # 4) rhythm – 고주파 변동성
-        high_var = np.var(avg_mfcc[8:13])
-        rhythm_raw = high_var * 20  # 스케일 보정
-
-        # 5) emotion – Pitch 변동성 (현재 평균 피치만으로 대체, 범위 80~400)
-        # 가정: 평균보다 높을수록 변동성이 커진다고 가정(단순화)
-        emotion_raw = ((avg_pitch - 120) / (400 - 120)) * 100
-
-        # ---- Min‑Max 스케일링 (성인 평균 범위 가정) ----
-        # 각 메트릭 별 기대 최소/최대값 (경험값)
         ranges = {
-            "warmth": (10, 90),
-            "clarity": (20, 80),
-            "power": (15, 95),
-            "rhythm": (5, 70),
-            "emotion": (10, 90),
+            "warmth": (0, 100),       
+            "clarity": (0.0, 1.0),    
+            "power": (0.0, 0.2),      
+            "rhythm": (0.0, 2.0),     
+            "emotion": (0.0, 200),    
         }
+
         def minmax_scale(val, name):
             lo, hi = ranges[name]
+            if hi - lo == 0: return 0
             scaled = (val - lo) / (hi - lo) * 100
             return clamp(scaled)
 
-        warmth = minmax_scale(warmth_raw, "warmth")
-        clarity = minmax_scale(clarity_raw, "clarity")
-        power = minmax_scale(power_raw, "power")
-        rhythm = minmax_scale(rhythm_raw, "rhythm")
-        emotion = minmax_scale(emotion_raw, "emotion")
-
         return {
-            "warmth": warmth,
-            "clarity": clarity,
-            "power": power,
-            "rhythm": rhythm,
-            "emotion": emotion,
+            "warmth": minmax_scale(raw_features.get("warmth", 0), "warmth"),
+            "clarity": minmax_scale(raw_features.get("clarity", 0), "clarity"),
+            "power": minmax_scale(raw_features.get("power", 0), "power"),
+            "rhythm": minmax_scale(raw_features.get("rhythm", 0), "rhythm"),
+            "emotion": minmax_scale(raw_features.get("emotion", 0), "emotion"),
         }
-
-
 
     @staticmethod
     def process_audio(task_uuid: str, s3_file_url: str) -> dict:
@@ -313,18 +371,32 @@ class AnalysisService:
                 # 오디오 파일 로드 (sr=None으로 원본 샘플링 레이트 유지)
                 y, sr = librosa.load(vocals_path, sr=None)
                 
-                # 1) Pitch (F0) 추출: 기본 주파수 평균값 계산 (사람 목소리 음역대 C2 ~ C7 기준)
-                f0, voiced_flag, voiced_probs = librosa.pyin(y, fmin=librosa.note_to_hz('C2'), fmax=librosa.note_to_hz('C7'))
-                valid_f0 = f0[~np.isnan(f0)] # NaN 값 제외
-                avg_pitch = float(np.mean(valid_f0)) if len(valid_f0) > 0 else 0.0
+                # # 1) Pitch (F0) 추출: 기본 주파수 평균값 계산 (사람 목소리 음역대 C2 ~ C7 기준)
+                # f0, voiced_flag, voiced_probs = librosa.pyin(y, fmin=librosa.note_to_hz('C2'), fmax=librosa.note_to_hz('C7'))
+                # valid_f0 = f0[~np.isnan(f0)] # NaN 값 제외
+                # avg_pitch = float(np.mean(valid_f0)) if len(valid_f0) > 0 else 0.0
+                # logger.info(f"[AnalysisService] 추출된 평균 Pitch (F0): {avg_pitch:.2f} Hz")
+
+                # # 2) MFCC 추출: 목소리의 음색을 파악하는 20차원 배열 생성
+                # mfcc = librosa.feature.mfcc(y=y, sr=sr, n_mfcc=20)
+                # avg_mfcc = np.mean(mfcc, axis=1) # 프레임별 평균을 구해 1차원 배열로 변환
+                # logger.info(f"[AnalysisService] 추출된 평균 MFCC (20 dims): {avg_mfcc}")
+
+                # # 2-1) 목소리 프로파일링 태그 생성
+                # voice_tags = AnalysisService.generate_voice_tags(avg_pitch, avg_mfcc)
+
+                # 1) 원시 지표 전체 추출 (Pitch, MFCC, RMS, Onset 등 통합 추출)
+                raw_features = AnalysisService.extract_audio_features(y, sr)
+                avg_pitch = raw_features["pitch"]
+                avg_mfcc = raw_features["mfcc"]
+                
                 logger.info(f"[AnalysisService] 추출된 평균 Pitch (F0): {avg_pitch:.2f} Hz")
-
-                # 2) MFCC 추출: 목소리의 음색을 파악하는 20차원 배열 생성
-                mfcc = librosa.feature.mfcc(y=y, sr=sr, n_mfcc=20)
-                avg_mfcc = np.mean(mfcc, axis=1) # 프레임별 평균을 구해 1차원 배열로 변환
-                logger.info(f"[AnalysisService] 추출된 평균 MFCC (20 dims): {avg_mfcc}")
-
-                # 2-1) 목소리 프로파일링 태그 생성
+                
+                # 2) 스탯 정규화 (0~100) 및 페르소나 생성
+                vocal_stats = AnalysisService.generate_vocal_stats(raw_features)
+                vocal_persona = AnalysisService.generate_vocal_persona(avg_pitch, avg_mfcc, vocal_stats)
+                
+                # 3) 목소리 프로파일링 태그 생성
                 voice_tags = AnalysisService.generate_voice_tags(avg_pitch, avg_mfcc)
                 
                 # 4. DB 연동: 곡(Song) 데이터 로드 및 파싱
@@ -390,11 +462,14 @@ class AnalysisService:
             ap = avg_pitch if 'avg_pitch' in locals() else 0.0
             am = avg_mfcc if 'avg_mfcc' in locals() else np.zeros(20)
 
-            # [신규] 보컬 스탯 생성 (추천 사유와 페르소나의 근거가 됨)
-            vocal_stats = AnalysisService.generate_vocal_stats(am, ap)
-            
-            # [신규] 보컬 페르소나 생성 (stats 기반)
-            vocal_persona = AnalysisService.generate_vocal_persona(ap, am, vocal_stats)
+            # # [신규] 보컬 스탯 생성 (추천 사유와 페르소나의 근거가 됨)
+            # # 원시 오디오 특징 추출
+            # raw_features = AnalysisService.extract_audio_features(y, sr)
+            # # 스탯 정규화 (Min‑Max Scaling)
+            # vocal_stats = AnalysisService.generate_vocal_stats(raw_features)
+
+            # # [신규] 보컬 페르소나 생성 (Top2 스탯 조합 기반)
+            # vocal_persona = AnalysisService.generate_vocal_persona(ap, am, vocal_stats)
 
             similarity_score = AnalysisService.cosine_to_score(best_cosine) if matched_song_id else 0
             

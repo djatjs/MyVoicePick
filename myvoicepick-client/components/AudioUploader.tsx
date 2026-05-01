@@ -3,7 +3,7 @@
 import React, { useState, useRef } from 'react';
 import {
   UploadCloud, Loader2, AlertCircle, CheckCircle2,
-  Music, Mic2, Sparkles, RotateCcw, Flame, Zap, Wind, Heart, Activity
+  Music, Mic2, Sparkles, RotateCcw, Flame, Zap, Wind, Heart, Activity, Play
 } from 'lucide-react';
 
 type UploadState = 'idle' | 'dragging' | 'uploading' | 'success' | 'error';
@@ -29,18 +29,18 @@ interface MatchResult {
   vocalStats?: VocalStats;
 }
 
-// 스탯 바 한 줄 컴포넌트 (외부 라이브러리 없이 Tailwind만 사용)
+// 스탯 바 한 줄 컴포넌트 (완전한 다크모드)
 function StatBar({ label, value, icon, color }: { label: string; value: number; icon: React.ReactNode; color: string }) {
   return (
-    <div className="space-y-1.5">
-      <div className="flex items-center justify-between text-xs">
-        <div className="flex items-center space-x-1.5 text-zinc-400 font-bold">
+    <div className="space-y-2">
+      <div className="flex items-center justify-between text-sm">
+        <div className="flex items-center gap-2 text-zinc-400">
           {icon}
-          <span>{label}</span>
+          <span className="font-medium text-zinc-300">{label}</span>
         </div>
-        <span className="font-black text-white">{value}</span>
+        <span className="font-bold text-zinc-100">{value}</span>
       </div>
-      <div className="w-full h-1.5 bg-zinc-700/60 rounded-full overflow-hidden">
+      <div className="w-full h-2 bg-zinc-800 rounded-full overflow-hidden border border-zinc-800/50">
         <div
           className={`h-full rounded-full transition-all duration-1000 ease-out ${color}`}
           style={{ width: `${value}%` }}
@@ -140,211 +140,234 @@ export default function AudioUploader() {
     const file = e.dataTransfer.files[0];
     if (file) processFile(file);
   };
+
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) processFile(file);
     e.target.value = '';
   };
+
   const handleReset = (e: React.MouseEvent) => {
     e.stopPropagation();
     setUploadState('idle'); setMatchResult(null);
   };
 
-  const getPitchPos = (hz: number) =>
-    Math.min(100, Math.max(0, ((hz - 80) / 320) * 100));
+  const getPitchPos = (hz: number) => Math.min(100, Math.max(0, ((hz - 80) / 320) * 100));
 
-  // ==================== 성공 결과 대시보드 ====================
-  if (uploadState === 'success' && matchResult) {
-    const s = matchResult.vocalStats;
-    return (
-      <div className="w-full max-w-5xl mx-auto mt-6 px-4 animate-in fade-in slide-in-from-bottom-6 duration-700">
-        {/* 분석 완료 헤더 */}
-        <div className="flex items-center justify-between mb-4">
-          <div className="flex items-center space-x-2">
-            <CheckCircle2 className="w-5 h-5 text-emerald-400" />
-            <span className="text-emerald-400 font-black text-sm uppercase tracking-widest">보컬 DNA 분석 완료</span>
-          </div>
-          <button
-            onClick={handleReset}
-            className="flex items-center space-x-1.5 text-zinc-500 hover:text-zinc-200 text-xs font-bold transition-colors"
-          >
-            <RotateCcw className="w-3.5 h-3.5" />
-            <span>다른 목소리도 분석해보기</span>
-          </button>
-        </div>
+  return (
+    <div className="w-full max-w-4xl mx-auto mt-8 sm:mt-12 px-4">
+      {/* 
+        메인 컨테이너: 강제 다크 모드 (bg-zinc-950)
+      */}
+      <div className="group relative overflow-hidden w-full bg-zinc-950 border border-zinc-800 text-zinc-100 rounded-2xl transition-all duration-300 shadow-[0_8px_30px_rgb(0,0,0,0.4)] flex flex-col min-h-[500px]">
 
-        {/* 메인 대시보드: 좌우 분할 (데스크탑 5:5, 모바일 세로) */}
-        <div className="flex flex-col md:flex-row gap-0 rounded-3xl overflow-hidden border border-zinc-800 shadow-2xl bg-zinc-900">
-
-          {/* ===== 좌측 패널: 앨범 커버 (독립 영역, 텍스트 절대 없음) ===== */}
-          <div className="relative w-full md:w-1/2 aspect-square flex-shrink-0 bg-zinc-800">
-            {matchResult.albumCoverUrl ? (
-              // eslint-disable-next-line @next/next/no-img-element
-              <img
-                src={matchResult.albumCoverUrl}
-                alt={`${matchResult.title} 앨범 커버`}
-                className="w-full h-full object-cover"
-              />
-            ) : (
-              <div className="w-full h-full flex items-center justify-center">
-                <Music className="w-32 h-32 text-zinc-700" />
-              </div>
-            )}
-            {/* 유사도 뱃지 — 이미지 위 좌상단에만 위치 */}
-            <div className="absolute top-5 left-5 flex items-center space-x-1.5 bg-black/70 backdrop-blur-md px-4 py-2 rounded-full border border-emerald-500/30">
-              <Sparkles className="w-4 h-4 text-emerald-400" />
-              <span className="text-emerald-400 font-black text-sm">유사도 {matchResult.similarityScore}%</span>
+        {/* ==================== 헤더 영역 ==================== */}
+        <div className="p-4 sm:p-5 flex items-center justify-between border-b border-zinc-800 bg-zinc-900/50">
+          <div className="flex items-center gap-3">
+            <div className="p-2 bg-emerald-500/10 border border-emerald-500/20 rounded-lg">
+              {uploadState === 'success' ? (
+                <CheckCircle2 className="w-5 h-5 text-emerald-400" />
+              ) : (
+                <Mic2 className="w-5 h-5 text-emerald-400" />
+              )}
+            </div>
+            <div>
+              <h3 className="text-sm font-semibold text-zinc-100">
+                {uploadState === 'success' ? 'Vocal DNA Analysis Complete' : 'AI Vocal Analyzer'}
+              </h3>
+              <p className="text-xs text-zinc-400">
+                {uploadState === 'success'
+                  ? '당신의 목소리와 완벽하게 어울리는 곡을 찾았습니다.'
+                  : '목소리를 업로드하고 인생곡을 찾아보세요.'}
+              </p>
             </div>
           </div>
 
-          {/* ===== 우측 패널: 분석 리포트 (스크롤 가능) ===== */}
-          <div className="w-full md:w-1/2 flex flex-col overflow-y-auto max-h-[500px] md:max-h-none">
-            <div className="flex flex-col h-full p-7 space-y-6">
+          {uploadState === 'success' && (
+            <button
+              onClick={handleReset}
+              className="p-2 rounded-lg hover:bg-zinc-800 transition-colors flex items-center gap-2 text-sm text-zinc-400 hover:text-zinc-200 font-medium"
+            >
+              <RotateCcw className="w-4 h-4" />
+              <span className="hidden sm:inline">다시 분석하기</span>
+            </button>
+          )}
+        </div>
 
-              {/* [섹션 1] 타이틀 — 보컬 페르소나 강조 */}
-              <div className="space-y-2">
-                <p className="text-[10px] text-zinc-600 font-black uppercase tracking-[0.2em]">당신의 목소리 DNA 분석 결과</p>
-                <h2 className="text-xl font-black text-white leading-snug">
-                  &ldquo;{matchResult.vocalPersona || '분석 중...'}&rdquo;
-                </h2>
-                {/* 태그 */}
-                <div className="flex flex-wrap gap-1.5 pt-1">
-                  {matchResult.voiceTags?.map((tag, i) => (
-                    <span key={i} className="text-[10px] font-black px-2.5 py-1 bg-zinc-700/60 text-zinc-300 rounded-md border border-zinc-600/30 tracking-wide">
-                      {tag}
-                    </span>
-                  ))}
-                </div>
-              </div>
+        {/* ==================== 바디 영역 ==================== */}
+        <div className="flex-1 p-4 sm:p-6 flex flex-col justify-center bg-zinc-950">
 
-              {/* [섹션 2] 오디오 특성 바 5종 */}
-              {s && (
-                <div className="bg-zinc-800/50 border border-zinc-700/40 rounded-2xl p-5 space-y-4">
-                  <p className="text-[10px] text-zinc-500 font-black uppercase tracking-widest">🎛 보컬 특성 분석</p>
-                  <StatBar label="따뜻함 (Warmth)"  value={s.warmth}  icon={<Flame   className="w-3 h-3" />} color="bg-gradient-to-r from-orange-600 to-amber-400" />
-                  <StatBar label="선명도 (Clarity)" value={s.clarity} icon={<Wind    className="w-3 h-3" />} color="bg-gradient-to-r from-sky-600 to-cyan-400" />
-                  <StatBar label="파워 (Power)"     value={s.power}   icon={<Zap     className="w-3 h-3" />} color="bg-gradient-to-r from-purple-600 to-violet-400" />
-                  <StatBar label="리듬감 (Rhythm)"  value={s.rhythm}  icon={<Activity className="w-3 h-3" />} color="bg-gradient-to-r from-emerald-600 to-green-400" />
-                  <StatBar label="감성 (Emotion)"   value={s.emotion} icon={<Heart   className="w-3 h-3" />} color="bg-gradient-to-r from-pink-600 to-rose-400" />
-                </div>
-              )}
+          {/* 성공 화면 (결과 대시보드) */}
+          {uploadState === 'success' && matchResult ? (
+            <div className="flex flex-col md:flex-row gap-6 animate-in fade-in slide-in-from-bottom-4 duration-700">
 
-              {/* [섹션 3] Pitch 게이지 */}
-              <div className="bg-zinc-800/50 border border-zinc-700/40 rounded-2xl p-5 space-y-3">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center space-x-1.5">
-                    <Mic2 className="w-3.5 h-3.5 text-emerald-400" />
-                    <span className="text-[10px] text-zinc-500 font-black uppercase tracking-widest">음역대 (Pitch)</span>
+              {/* 좌측 패널: 앨범 커버 & 매칭 곡 정보 */}
+              <div className="w-full md:w-5/12 flex flex-col gap-4">
+                <div className="relative w-full aspect-square rounded-xl overflow-hidden border border-zinc-800 shadow-inner group-hover:shadow-lg transition-all bg-zinc-900">
+                  {matchResult.albumCoverUrl ? (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img
+                      src={matchResult.albumCoverUrl}
+                      alt="앨범 커버"
+                      className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105"
+                    />
+                  ) : (
+                    <div className="w-full h-full flex items-center justify-center bg-zinc-900">
+                      <Music className="w-16 h-16 text-zinc-700" />
+                    </div>
+                  )}
+
+                  {/* 유사도 뱃지 */}
+                  <div className="absolute top-4 left-4 flex items-center gap-1.5 bg-black/70 backdrop-blur-md px-3 py-1.5 rounded-full border border-emerald-500/30">
+                    <Sparkles className="w-3.5 h-3.5 text-emerald-400" />
+                    <span className="text-emerald-400 font-bold text-xs">매칭률 {matchResult.similarityScore}%</span>
                   </div>
-                  <span className="text-emerald-400 font-black text-sm">{matchResult.pitchHz} Hz</span>
                 </div>
-                <div className="flex justify-between text-[9px] text-zinc-600 font-bold">
-                  <span>저음역 (80Hz)</span><span>고음역 (400Hz)</span>
-                </div>
-                <div className="relative w-full h-2 bg-zinc-700 rounded-full">
-                  <div
-                    className="absolute top-0 left-0 h-full rounded-full bg-gradient-to-r from-blue-500 via-emerald-400 to-yellow-400 transition-all duration-1000"
-                    style={{ width: `${getPitchPos(matchResult.pitchHz || 0)}%` }}
-                  />
-                  <div
-                    className="absolute top-1/2 -translate-y-1/2 w-4 h-4 bg-white rounded-full border-2 border-emerald-400 shadow-[0_0_10px_rgba(52,211,153,0.6)] transition-all duration-1000"
-                    style={{ left: `calc(${getPitchPos(matchResult.pitchHz || 0)}% - 8px)` }}
-                  />
+
+                {/* 곡 정보 카드 */}
+                <div className="p-4 rounded-xl bg-zinc-900/80 border border-zinc-800 space-y-2">
+                  <p className="text-[10px] font-bold text-zinc-500 uppercase tracking-wider">Best Match Song</p>
+                  <div>
+                    <h4 className="text-lg font-bold text-zinc-100 truncate">{matchResult.title}</h4>
+                    <p className="text-sm text-emerald-400 font-medium">{matchResult.artist}</p>
+                  </div>
+                  {matchResult.previewUrl && (
+                    <button
+                      onClick={() => window.open(matchResult.previewUrl, '_blank')}
+                      className="mt-3 w-full h-10 flex items-center justify-center gap-2 bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-400 hover:to-teal-400 text-zinc-950 text-sm font-bold rounded-lg transition-all shadow-[0_0_15px_rgba(16,185,129,0.3)] active:scale-[0.98]"
+                    >
+                      <Play className="w-4 h-4 fill-current" />
+                      미리듣기
+                    </button>
+                  )}
                 </div>
               </div>
 
-              {/* [섹션 4] 매칭 곡 & 추천 사유 */}
-              <div className="bg-zinc-800/50 border border-zinc-700/40 rounded-2xl p-5 space-y-3">
-                <p className="text-[10px] text-zinc-500 font-black uppercase tracking-widest">🎵 최적 매칭 곡</p>
-                <div>
-                  <p className="text-white font-black text-lg leading-tight">{matchResult.title}</p>
-                  <p className="text-emerald-500 font-bold text-sm">{matchResult.artist}</p>
-                </div>
-                <p className="text-zinc-400 text-xs leading-relaxed italic border-t border-zinc-700/40 pt-3">
-                  &ldquo;{matchResult.recommendReason}&rdquo;
-                </p>
-              </div>
+              {/* 우측 패널: 분석 리포트 */}
+              <div className="w-full md:w-7/12 flex flex-col gap-4">
 
-              {/* [섹션 5] 버튼 */}
-              <div className="space-y-3 pt-1">
-                {matchResult.previewUrl && (
-                  <button
-                    onClick={(e) => { e.stopPropagation(); window.open(matchResult.previewUrl, '_blank', 'noopener,noreferrer'); }}
-                    className="w-full flex items-center justify-center space-x-2 py-4 bg-red-600 hover:bg-red-500 text-white rounded-2xl text-sm font-black transition-all active:scale-[0.98] shadow-lg shadow-red-600/20"
-                  >
-                    <Music className="w-4 h-4 fill-current" />
-                    <span>🎧 지금 바로 들어보기</span>
-                  </button>
+                {/* 페르소나 타이틀 */}
+                <div className="space-y-3 pb-2">
+                  <h2 className="text-2xl font-black text-zinc-100 leading-tight">
+                    &ldquo;{matchResult.vocalPersona || '매력적인 음색의 소유자'}&rdquo;
+                  </h2>
+                  <div className="flex flex-wrap gap-2">
+                    {matchResult.voiceTags?.map((tag, i) => (
+                      <span key={i} className="text-xs font-semibold px-2.5 py-1 bg-zinc-800 text-zinc-300 rounded-md border border-zinc-700">
+                        #{tag}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+
+                {/* 추천 사유 */}
+                <div className="p-4 rounded-xl bg-emerald-950/20 border border-emerald-900/30">
+                  <p className="text-sm text-zinc-300 leading-relaxed italic">
+                    &ldquo;{matchResult.recommendReason}&rdquo;
+                  </p>
+                </div>
+
+                {/* 보컬 스탯 (Grid 적용) */}
+                {matchResult.vocalStats && (
+                  <div className="p-5 rounded-xl bg-zinc-900/80 border border-zinc-800 space-y-5">
+                    <div className="flex items-center gap-2 mb-2">
+                      <Activity className="w-4 h-4 text-zinc-500" />
+                      <span className="text-xs font-bold text-zinc-500 uppercase tracking-wider">Vocal Characteristics</span>
+                    </div>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-4">
+                      <StatBar label="Warmth" value={matchResult.vocalStats.warmth} icon={<Flame className="w-3.5 h-3.5" />} color="bg-orange-500" />
+                      <StatBar label="Clarity" value={matchResult.vocalStats.clarity} icon={<Wind className="w-3.5 h-3.5" />} color="bg-sky-500" />
+                      <StatBar label="Power" value={matchResult.vocalStats.power} icon={<Zap className="w-3.5 h-3.5" />} color="bg-violet-500" />
+                      <StatBar label="Rhythm" value={matchResult.vocalStats.rhythm} icon={<Activity className="w-3.5 h-3.5" />} color="bg-emerald-500" />
+                      <StatBar label="Emotion" value={matchResult.vocalStats.emotion} icon={<Heart className="w-3.5 h-3.5" />} color="bg-rose-500" />
+
+                      {/* 음역대(Pitch) 게이지 */}
+                      <div className="space-y-2">
+                        <div className="flex items-center justify-between text-sm">
+                          <div className="flex items-center gap-2 text-zinc-400">
+                            <Mic2 className="w-3.5 h-3.5" />
+                            <span className="font-medium text-zinc-300">Pitch (Hz)</span>
+                          </div>
+                          <span className="font-bold text-emerald-400">{matchResult.pitchHz}</span>
+                        </div>
+                        <div className="relative w-full h-2 bg-zinc-800 rounded-full mt-1 border border-zinc-800/50">
+                          <div
+                            className="absolute top-0 left-0 h-full rounded-full bg-gradient-to-r from-blue-500 via-emerald-400 to-amber-400"
+                            style={{ width: `${getPitchPos(matchResult.pitchHz || 0)}%` }}
+                          />
+                          <div
+                            className="absolute top-1/2 -translate-y-1/2 w-3 h-3 bg-zinc-100 rounded-full shadow-[0_0_8px_rgba(52,211,153,0.8)]"
+                            style={{ left: `calc(${getPitchPos(matchResult.pitchHz || 0)}% - 6px)` }}
+                          />
+                        </div>
+                      </div>
+                    </div>
+                  </div>
                 )}
               </div>
             </div>
-          </div>
-        </div>
-      </div>
-    );
-  }
+          ) : (
 
-  // ==================== 업로드 드롭존 ====================
-  return (
-    <div className="w-full max-w-xl mx-auto mt-8 sm:mt-14 px-4">
-      <input
-        type="file" ref={fileInputRef} className="hidden"
-        accept=".mp3,.m4a,.wav,audio/mpeg,audio/wav,audio/mp4,audio/aac,audio/x-m4a"
-        onChange={handleFileChange}
-        disabled={uploadState === 'uploading'}
-      />
-      <div
-        className={`
-          relative flex flex-col items-center justify-center
-          w-full min-h-[22rem] rounded-3xl border-2 border-dashed
-          transition-all duration-300 cursor-pointer overflow-hidden p-8
-          ${uploadState === 'dragging'  ? 'border-emerald-500 bg-emerald-500/10 scale-[1.02]'
-          : uploadState === 'error'     ? 'border-red-500/50 bg-red-950/20 cursor-default'
-          : uploadState === 'uploading' ? 'border-zinc-700 bg-zinc-900/60 cursor-default'
-          : 'border-zinc-700 bg-zinc-900/30 hover:border-zinc-500 hover:bg-zinc-800/40'}
-        `}
-        onDragOver={handleDragOver} onDragLeave={handleDragLeave} onDrop={handleDrop}
-        onClick={() => { if (uploadState === 'idle' || uploadState === 'dragging') fileInputRef.current?.click(); }}
-      >
-        {uploadState === 'uploading' ? (
-          <div className="flex flex-col items-center space-y-6 animate-in fade-in duration-500">
-            <div className="relative">
-              <div className="absolute inset-0 rounded-full blur-2xl bg-emerald-500/25 animate-pulse" />
-              <div className="w-20 h-20 border-4 border-zinc-700 border-t-emerald-500 rounded-full animate-spin" />
-              <Mic2 className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-8 h-8 text-emerald-400" />
-            </div>
-            <div className="text-center space-y-2">
-              <p className="text-xl font-black text-white">보컬 DNA를 분석 중입니다...</p>
-              <p className="text-sm text-zinc-500">음역대, 음색, 5가지 특성을 AI가 추출하고 있어요.</p>
-            </div>
-          </div>
-        ) : uploadState === 'error' ? (
-          <div className="flex flex-col items-center space-y-4">
-            <AlertCircle className="w-14 h-14 text-red-500" />
-            <p className="text-red-400 font-bold text-center text-sm px-4">{errorMessage}</p>
-          </div>
-        ) : (
-          <div className="flex flex-col items-center space-y-6 pointer-events-none text-center">
-            <div className="relative">
-              <div className="absolute inset-0 rounded-full blur-xl bg-zinc-700/30" />
-              <div className="relative p-6 bg-gradient-to-b from-zinc-800 to-zinc-900 rounded-full ring-1 ring-white/10 shadow-xl">
-                <UploadCloud className="w-12 h-12 text-emerald-400" strokeWidth={1.5} />
+            /* 기본 업로드 드롭존 (강제 다크모드) */
+            <div className="w-full flex items-center justify-center">
+              <input
+                type="file" ref={fileInputRef} className="hidden"
+                accept=".mp3,.m4a,.wav,audio/mpeg,audio/wav,audio/mp4,audio/aac,audio/x-m4a"
+                onChange={handleFileChange}
+                disabled={uploadState === 'uploading'}
+              />
+              <div
+                className={`
+                  relative flex flex-col items-center justify-center
+                  w-full max-w-xl min-h-[300px] rounded-xl border-2 border-dashed
+                  transition-all duration-300 cursor-pointer overflow-hidden p-8
+                  ${uploadState === 'dragging' ? 'border-emerald-500 bg-emerald-500/10 scale-[1.02]'
+                    : uploadState === 'error' ? 'border-red-900/50 bg-red-950/20 cursor-default'
+                      : uploadState === 'uploading' ? 'border-zinc-800 bg-zinc-900/50 cursor-default'
+                        : 'border-zinc-700 bg-zinc-900/30 hover:border-zinc-500 hover:bg-zinc-800/50'}
+                `}
+                onDragOver={handleDragOver} onDragLeave={handleDragLeave} onDrop={handleDrop}
+                onClick={() => { if (uploadState === 'idle' || uploadState === 'dragging') fileInputRef.current?.click(); }}
+              >
+                {uploadState === 'uploading' ? (
+                  <div className="flex flex-col items-center space-y-6 animate-in fade-in duration-500">
+                    <div className="relative w-16 h-16">
+                      <Loader2 className="w-full h-full animate-spin text-emerald-400" />
+                      <div className="absolute inset-0 bg-gradient-to-tr from-transparent via-transparent to-emerald-500/20 rounded-full animate-spin-slow" />
+                    </div>
+                    <div className="text-center space-y-1.5">
+                      <p className="text-sm font-medium text-zinc-100">AI가 목소리를 분석하고 있습니다...</p>
+                      <p className="text-xs text-zinc-400">음역대, 음색, 보컬 특성을 추출하는 중입니다 (약 10~15초 소요)</p>
+                    </div>
+                    {/* 로딩 프로그레스 바 */}
+                    <div className="w-48 h-1.5 bg-zinc-800 rounded-full overflow-hidden mt-4">
+                      <div className="h-full bg-gradient-to-r from-emerald-500 to-teal-400 w-full origin-left animate-pulse" />
+                    </div>
+                  </div>
+                ) : uploadState === 'error' ? (
+                  <div className="flex flex-col items-center space-y-3">
+                    <AlertCircle className="w-12 h-12 text-red-500" />
+                    <p className="text-red-400 font-medium text-center text-sm">{errorMessage}</p>
+                  </div>
+                ) : (
+                  <div className="flex flex-col items-center space-y-4 pointer-events-none text-center">
+                    <div className="p-4 bg-zinc-900 rounded-full shadow-sm border border-zinc-800">
+                      <UploadCloud className="w-8 h-8 text-zinc-400" strokeWidth={1.5} />
+                    </div>
+                    <div className="space-y-1">
+                      <p className="text-base font-semibold text-zinc-100">
+                        클릭하거나 파일을 이곳에 드롭하세요
+                      </p>
+                      <p className="text-sm text-zinc-400">
+                        MP3, WAV, M4A 지원 (최대 50MB)
+                      </p>
+                    </div>
+                  </div>
+                )}
               </div>
             </div>
-            <div className="space-y-3">
-              <p className="text-2xl font-black text-white tracking-tight">
-                목소리 DNA를 <span className="text-emerald-400">분석</span>해드릴게요
-              </p>
-              <p className="text-sm text-zinc-500 font-bold">
-                파일을 드래그하거나 클릭하여 업로드<br />
-                <span className="opacity-60 font-normal text-xs">지원 형식: .mp3 · .m4a · .wav · 최대 50MB</span>
-              </p>
-            </div>
-            <div className="mt-2 px-8 py-3 bg-zinc-800 text-zinc-300 rounded-full text-sm font-bold border border-zinc-700 pointer-events-auto">
-              파일 선택하기
-            </div>
-          </div>
-        )}
+          )}
+        </div>
       </div>
     </div>
   );
