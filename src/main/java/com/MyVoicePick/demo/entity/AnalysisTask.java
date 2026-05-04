@@ -37,7 +37,7 @@ public class AnalysisTask {
     @JoinColumn(name = "user_id", nullable = false)
     private User user;
 
-    // S3에 올라간 파일의 경로
+    // S3에 올라간 파일의 이름(Key). 이제 전체 URL 대신 Key만 저장하여 공간을 절약하고 보안을 강화합니다.
     @Column(name = "s3_file_url", nullable = false)
     private String s3FileUrl;
 

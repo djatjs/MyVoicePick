@@ -62,14 +62,15 @@ public class S3Uploader {
             throw new RuntimeException("파일 업로드에 실패했습니다.", e);
         }
 
-        // [보안 적용] 공개 URL 대신, 10분간만 유효한 Pre-signed URL을 생성하여 반환합니다.
-        return generatePresignedUrl(fileName);
+        // [수정] DB 부하를 줄이기 위해 전체 URL 대신 파일명(Key)만 반환합니다.
+        return fileName;
     }
 
     /**
      * S3 객체에 접근할 수 있는 임시 보안 URL을 생성합니다.
+     * 분석 작업 시 워커 전달용이나 결과 조회용으로 사용됩니다.
      */
-    private String generatePresignedUrl(String fileName) {
+    public String generatePresignedUrl(String fileName) {
         software.amazon.awssdk.services.s3.model.GetObjectRequest getObjectRequest = 
                 software.amazon.awssdk.services.s3.model.GetObjectRequest.builder()
                     .bucket(bucket)

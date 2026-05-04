@@ -33,11 +33,11 @@ public class AnalysisController {
             @RequestParam("userId") Long userId,
             @RequestParam("file") MultipartFile file
     ) {
-        // S3에 실제 파일 업로드 후 반환된 URL 확보
-        String s3FileUrl = s3Uploader.uploadFile(file);
+        // S3에 실제 파일 업로드 후 반환된 파일명(Key) 확보
+        String s3Key = s3Uploader.uploadFile(file);
 
         // 서비스 호출을 통해 분석 태스크(PENDING)를 DB에 적재 & 큐잉 대기 후 영수증(UUID) 확보
-        String taskUuid = analysisService.requestAnalysis(userId, s3FileUrl);
+        String taskUuid = analysisService.requestAnalysis(userId, s3Key);
 
         // JSON 형태로 돌려주기 위해 Map 사용 (추후 CreateAnalysisResponse 같은 DTO 객체를 만들어 써도 좋습니다.)
         Map<String, String> responseBody = new HashMap<>();

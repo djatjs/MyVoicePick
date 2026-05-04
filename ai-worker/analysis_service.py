@@ -309,22 +309,20 @@ class AnalysisService:
         local_file_path = ""
         
         try:
-            # 1. 파일 다운로드 로직 추가 (boto3)
+            # 1. 파일 다운로드 로직 (Pre-signed URL 지원)
             logger.info(f"[AnalysisService] 파일 다운로드 중...")
             
-            # S3 URL에서 버킷과 키 파싱 (예: https://bucket-name.s3.ap-northeast-2.amazonaws.com/uuid_filename.mp3)
-            match = re.match(r"https://(.*?)\.s3\..*?\.amazonaws\.com/(.*)", s3_file_url)
-            if not match:
-                raise ValueError(f"S3 URL 포맷이 올바르지 않습니다: {s3_file_url}")
-                
-            bucket_name = match.group(1)
-            object_key = match.group(2)
+            # Pre-signed URL은 인증 정보가 쿼리 스트링으로 포함되어 있어 
+            # 단순 HTTP GET 요청으로 다운로드하는 것이 가장 확실하고 안전합니다.
+            local_file_path = os.path.join(temp_dir, f"{task_uuid}_input.mp3")
             
-            local_file_path = os.path.join(temp_dir, f"{task_uuid}_{os.path.basename(object_key)}")
-            
-            # 파일 다운로드
-            s3_client.download_file(bucket_name, object_key, local_file_path)
-            logger.info(f"[AnalysisService] 파일 다운로드 완료: {local_file_path}")
+            try:
+                import urllib.request
+                urllib.request.urlretrieve(s3_file_url, local_file_path)
+                logger.info(f"[AnalysisService] 파일 다운로드 완료: {local_file_path}")
+            except Exception as download_error:
+                logger.error(f"[AnalysisService] S3 파일 다운로드 실패: {download_error}")
+                raise RuntimeError(f"파일 다운로드에 실패했습니다: {download_error}")
             
             # 2. 보컬 분리 (Demucs 활용)
             logger.info(f"[AnalysisService] Demucs(htdemucs)로 보컬 분리 진행 중...")

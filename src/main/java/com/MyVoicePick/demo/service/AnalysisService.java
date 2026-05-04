@@ -40,6 +40,7 @@ public class AnalysisService {
     private final AnalysisTaskRepository analysisTaskRepository;
     private final StringRedisTemplate stringRedisTemplate;
     private final ObjectMapper objectMapper;
+    private final S3Uploader s3Uploader;
 
     /**
      * 클라이언트의 분석 요청을 접수하고 대기 상태(PENDING)의 작업을 생성합니다.
@@ -49,33 +50,26 @@ public class AnalysisService {
      * @return 클라이언트가 추후 폴링(상태 확인)할 때 사용할 영수증 ID(UUID)
      */
     @Transactional
-    public String requestAnalysis(Long userId, String s3FileUrl) {
+    public String requestAnalysis(Long userId, String s3Key) {
         // 1. 유저 검증 - 식별되지 않은 사용자의 요청을 원천 차단
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new IllegalArgumentException("존재하지 않는 유저입니다. User ID: " + userId));
 
-        // 2. Task 생성 및 DB 저장 (객체 생성 로직은 Entity 내부로 캡슐화)
-        AnalysisTask task = AnalysisTask.create(user, s3FileUrl);
+        // 2. Task 생성 및 DB 저장 (이제 s3_file_url 컬럼에 짧은 s3Key만 저장합니다.)
+        AnalysisTask task = AnalysisTask.create(user, s3Key);
         final String taskUuid = task.getTaskUuid();
 
         analysisTaskRepository.save(task);
 
+        // [추가] 파이썬 워커가 S3 파일을 다운로드할 수 있도록 임시 보안 URL 생성 (10분 유효)
+        final String presignedUrl = s3Uploader.generatePresignedUrl(s3Key);
+
         // 3. [핵심 수정] DB 커밋 완료 후에 Redis 메시지를 발행합니다.
-        //
-        // [설계 의도 - 레이스 컨디션 방어]
-        // - 기존: save() → Redis 발행 → [트랜잭션 커밋] 순서로 동작
-        //   → 커밋 전에 파이썬이 메시지 수신 → DB 조회 실패 에러 발생
-        //
-        // - 변경: save() → [트랜잭션 커밋] → afterCommit() 콜백에서 Redis 발행
-        //   → DB에 Task가 확실히 존재한 이후에만 파이썬에게 신호 전달
-        //   → 레이스 컨디션 원천 차단
-        //
-        // TransactionSynchronizationManager: 현재 트랜잭션의 생명주기에 콜백을 등록하는 Spring 내장 도구
         TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
             @Override
             public void afterCommit() {
                 // 이 블록은 트랜잭션이 성공적으로 커밋된 이후에만 실행됩니다.
-                publishToRedis(taskUuid, s3FileUrl);
+                publishToRedis(taskUuid, presignedUrl);
             }
         });
 
@@ -86,10 +80,10 @@ public class AnalysisService {
      * Redis 큐에 분석 작업 메시지를 발행합니다.
      * 반드시 트랜잭션 커밋 이후에 호출되어야 합니다. (afterCommit 콜백에서 호출)
      */
-    private void publishToRedis(String taskUuid, String s3FileUrl) {
+    private void publishToRedis(String taskUuid, String presignedUrl) {
         Map<String, String> payload = new HashMap<>();
         payload.put("taskId", taskUuid);
-        payload.put("s3FileUrl", s3FileUrl);
+        payload.put("s3FileUrl", presignedUrl);
 
         try {
             String jsonPayload = objectMapper.writeValueAsString(payload);
