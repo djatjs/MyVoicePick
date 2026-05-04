@@ -21,6 +21,7 @@ import java.util.UUID;
 public class S3Uploader {
 
     private final S3Client s3Client;
+    private final software.amazon.awssdk.services.s3.presigner.S3Presigner s3Presigner;
 
     @Value("${spring.cloud.aws.s3.bucket}")
     private String bucket;
@@ -34,10 +35,14 @@ public class S3Uploader {
      * @return S3 URL
      */
     public String uploadFile(MultipartFile multipartFile) {
+        // [보안] 1. 서버 측 파일 검증 수행
+        com.MyVoicePick.demo.util.FileValidator.validateAudioFile(multipartFile);
+
+        // [보안] 2. 원본 파일명을 버리고 랜덤 UUID + 확장자로만 파일명 구성
+        // originalFilename은 확장자를 추출하기 위한 용도로만 사용합니다.
         String originalFilename = multipartFile.getOriginalFilename();
-        
-        // 파일명 중복 방지를 위해 고유 식별자(UUID)를 파일명 앞에 붙입니다.
-        String fileName = UUID.randomUUID().toString() + "_" + originalFilename;
+        String extension = originalFilename.substring(originalFilename.lastIndexOf("."));
+        String fileName = UUID.randomUUID().toString() + extension;
 
         try {
             PutObjectRequest putObjectRequest = PutObjectRequest.builder()
@@ -57,7 +62,26 @@ public class S3Uploader {
             throw new RuntimeException("파일 업로드에 실패했습니다.", e);
         }
 
-        // 업로드된 파일의 S3 URL 생성 후 반환
-        return String.format("https://%s.s3.%s.amazonaws.com/%s", bucket, region, fileName);
+        // [보안 적용] 공개 URL 대신, 10분간만 유효한 Pre-signed URL을 생성하여 반환합니다.
+        return generatePresignedUrl(fileName);
+    }
+
+    /**
+     * S3 객체에 접근할 수 있는 임시 보안 URL을 생성합니다.
+     */
+    private String generatePresignedUrl(String fileName) {
+        software.amazon.awssdk.services.s3.model.GetObjectRequest getObjectRequest = 
+                software.amazon.awssdk.services.s3.model.GetObjectRequest.builder()
+                    .bucket(bucket)
+                    .key(fileName)
+                    .build();
+
+        software.amazon.awssdk.services.s3.presigner.model.GetObjectPresignRequest presignRequest = 
+                software.amazon.awssdk.services.s3.presigner.model.GetObjectPresignRequest.builder()
+                    .signatureDuration(java.time.Duration.ofMinutes(10)) // 10분간 유효
+                    .getObjectRequest(getObjectRequest)
+                    .build();
+
+        return s3Presigner.presignGetObject(presignRequest).url().toString();
     }
 }
