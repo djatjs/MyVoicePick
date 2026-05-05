@@ -168,70 +168,30 @@ class AnalysisService:
         default_persona = "특색 있는 보컬"
         return persona_map.get(combo_key, default_persona)
 
-    # @staticmethod
-    # def generate_vocal_stats(raw_features: dict) -> dict:
-    #     def clamp(v, lo=0, hi=100):
-    #         return max(lo, min(hi, int(v)))
-
-    #     warmth_raw = (low_energy / (total_energy + 1e-9)) * 100  # 0~100 비율
-
-    #     # 2) clarity – spectral flatness 역수
-    #     mag = np.abs(avg_mfcc) + 1e-9
-    #     geometric = np.exp(np.mean(np.log(mag)))
-    #     arithmetic = np.mean(mag)
-    #     sf = geometric / arithmetic  # 0~1, 낮을수록 명료
-    #     clarity_raw = (1 - sf) * 100
-
-    #     # 3) power – RMS 에너지
-    #     power_raw = np.sqrt(np.mean(np.square(avg_mfcc))) * 10  # 스케일 보정
-
-    #     # 4) rhythm – 고주파 변동성
-    #     high_var = np.var(avg_mfcc[8:13])
-    #     rhythm_raw = high_var * 20  # 스케일 보정
-
-    #     # 5) emotion – Pitch 변동성 (현재 평균 피치만으로 대체, 범위 80~400)
-    #     # 가정: 평균보다 높을수록 변동성이 커진다고 가정(단순화)
-    #     emotion_raw = ((avg_pitch - 120) / (400 - 120)) * 100
-
-    #     # ---- Min‑Max 스케일링 (성인 평균 범위 가정) ----
-    #     # 각 메트릭 별 기대 최소/최대값 (경험값)
-    #     ranges = {
-    #         "warmth": (10, 90),
-    #         "clarity": (20, 80),
-    #         "power": (15, 95),
-    #         "rhythm": (5, 70),
-    #         "emotion": (10, 90),
-    #     }
-    #     def minmax_scale(val, name):
-    #         lo, hi = ranges[name]
-    #         scaled = (val - lo) / (hi - lo) * 100
-    #         return clamp(scaled)
-
-    #     warmth = minmax_scale(warmth_raw, "warmth")
-    #     clarity = minmax_scale(clarity_raw, "clarity")
-    #     power = minmax_scale(power_raw, "power")
-    #     rhythm = minmax_scale(rhythm_raw, "rhythm")
-    #     emotion = minmax_scale(emotion_raw, "emotion")
-
-    #     return {
-        
-    #         "warmth": warmth,
-    #         "clarity": clarity,
-    #         "power": power,
-    #         "rhythm": rhythm,
-    #         "emotion": emotion,
-    #     }
 
     @staticmethod
     def extract_audio_features(y: np.ndarray, sr: int) -> dict:
-        """Librosa 로부터 핵심 음향 지표들을 모두 추출한다."""
-        # 1. Pitch & Emotion
-        f0, _, _ = librosa.pyin(y, fmin=librosa.note_to_hz('C2'), fmax=librosa.note_to_hz('C7'))
+        """Librosa 로부터 핵심 음향 지표들을 효율적으로 추출한다.
+        최적화를 위해 피치 분석은 16kHz로 다운샘플링하여 진행합니다.
+        """
+        # --- 최적화: 분석용 다운샘플링 (16kHz) ---
+        target_sr = 16000
+        y_low = librosa.resample(y, orig_sr=sr, target_sr=target_sr) if sr != target_sr else y
+        
+        # 1. Pitch & Emotion (pyin 최적화: hop_length 늘림)
+        # 16kHz에서 hop_length=1024는 약 64ms 간격입니다.
+        f0, _, _ = librosa.pyin(
+            y_low, 
+            fmin=librosa.note_to_hz('C2'), 
+            fmax=librosa.note_to_hz('C7'),
+            sr=target_sr,
+            hop_length=1024
+        )
         valid_f0 = f0[~np.isnan(f0)]
         avg_pitch = float(np.mean(valid_f0)) if valid_f0.size > 0 else 0.0
         emotion = float(np.std(valid_f0)) if valid_f0.size > 0 else 0.0
 
-        # 2. Power (RMS)
+        # 2. Power (RMS) - 원본 해상도 유지
         rms = librosa.feature.rms(y=y)
         power = float(np.mean(rms))
 
@@ -327,18 +287,33 @@ class AnalysisService:
             # 2. 보컬 분리 (Demucs 활용)
             logger.info(f"[AnalysisService] Demucs(htdemucs)로 보컬 분리 진행 중...")
             
-            # 분리된 파일이 저장될 출력 디렉토리 (temp/demucs_out_uuid)
+            # [속도 최적화] 분석용 45초 구간 추출 (전체 곡 분리는 너무 오래 걸림)
+            trimmed_file_path = os.path.join(temp_dir, f"{task_uuid}_trimmed.mp3")
+            try:
+                # 15초 지점부터 45초간 추출 (보컬이 존재할 확률이 높은 구간)
+                trim_command = [
+                    "ffmpeg", "-y", "-i", local_file_path,
+                    "-ss", "15", "-t", "45",
+                    "-ac", "2", "-ar", "44100",
+                    trimmed_file_path
+                ]
+                subprocess.run(trim_command, check=True, capture_output=True)
+                input_for_separation = trimmed_file_path
+                logger.info(f"[AnalysisService] 분석 속도 향상을 위해 45초 구간 트리밍 완료")
+            except Exception as trim_error:
+                logger.warning(f"[AnalysisService] 트리밍 실패, 원본 사용: {trim_error}")
+                input_for_separation = local_file_path
+
+            # 분리된 파일이 저장될 출력 디렉토리
             output_dir = os.path.join(temp_dir, f"demucs_out_{task_uuid}")
             os.makedirs(output_dir, exist_ok=True)
             
-            # CPU 환경에서도 빠르게 돌아갈 수 있는 htdemucs 모델을 사용하며, vocals(보컬) 스템만 추출합니다.
-            # python -m demucs.separate 의 형태로 호출하여 모듈을 안전하게 실행합니다.
             command = [
                 sys.executable, "-m", "demucs.separate",
                 "-n", "htdemucs",
                 "--two-stems", "vocals",
                 "-o", output_dir,
-                local_file_path
+                input_for_separation
             ]
             
             try:
@@ -353,9 +328,10 @@ class AnalysisService:
                 logger.error(f"[AnalysisService] Demucs 분리 실패 상세: \n{error_msg}")
                 raise RuntimeError(f"보컬 분리 중 오류가 발생했습니다: {error_msg}")
             
-            # demucs 기본 출력 구조: {output_dir}/htdemucs/{원래 파일명}/vocals.wav
-            original_filename = os.path.splitext(os.path.basename(local_file_path))[0]
-            vocals_path = os.path.join(output_dir, "htdemucs", original_filename, "vocals.wav")
+            # demucs 기본 출력 구조: {output_dir}/htdemucs/{입력 파일명}/vocals.wav
+            # 트리밍된 파일을 사용했을 경우를 고려하여 input_for_separation 기준으로 파일명을 추출합니다.
+            used_filename = os.path.splitext(os.path.basename(input_for_separation))[0]
+            vocals_path = os.path.join(output_dir, "htdemucs", used_filename, "vocals.wav")
             
             # 3. 오디오 특징 추출 (Pitch, MFCC)
             logger.info(f"[AnalysisService] 분리된 보컬 파일 존재 여부 확인 중...")
