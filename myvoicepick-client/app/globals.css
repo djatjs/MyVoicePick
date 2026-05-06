@@ -10,6 +10,10 @@
   --foreground: #fafafa; /* zinc-50 */
 }
 
+html {
+  scroll-behavior: smooth;
+}
+
 body {
   background-color: var(--background);
   color: var(--foreground);
@@ -42,5 +46,22 @@ body {
   @keyframes slideInBottom {
     from { transform: translateY(1rem); opacity: 0; }
     to { transform: translateY(0); opacity: 1; }
+  }
+
+  /* 마키(Marquee) 애니메이션 추가 */
+  .animate-marquee {
+    animation: marquee 25s linear infinite;
+  }
+  .animate-marquee2 {
+    animation: marquee2 25s linear infinite;
+  }
+
+  @keyframes marquee {
+    0% { transform: translateX(0%); }
+    100% { transform: translateX(-100%); }
+  }
+  @keyframes marquee2 {
+    0% { transform: translateX(100%); }
+    100% { transform: translateX(0%); }
   }
 }

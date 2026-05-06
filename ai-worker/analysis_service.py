@@ -127,6 +127,70 @@ class AnalysisService:
         return f"당신의 목소리는 {tone_desc}이며, {emotion_part}{base_reason}{key_tip}"
 
     @staticmethod
+    def generate_pro_features(user_pitch: float, best_song_pitch: float, vocal_stats: dict, matched_artist: str, matched_song_title: str, available_songs: list) -> dict:
+        """
+        PRO 유저를 위한 보컬 성장 솔루션 데이터를 생성합니다.
+        """
+        import math
+        import random
+
+        # 1. Key 추천 로직 (음악 이론의 반음계(Semitone) 기반 계산)
+        # 1 옥타브 = 12 반음 = 주파수 2배
+        if best_song_pitch > 0 and user_pitch > 0:
+            semitones_diff = round(12 * math.log2(user_pitch / best_song_pitch))
+            # 옥타브 차이를 무시하기 위해 12로 나눈 나머지를 구함 (단, -6 ~ +6 사이의 값으로 맞춤)
+            key_diff = semitones_diff % 12
+            if key_diff > 6:
+                key_diff -= 12
+            
+            if key_diff == 0:
+                key_recommend = "원키 (Original Key)"
+            elif key_diff > 0:
+                key_recommend = f"+{key_diff} Key (원곡보다 높게)"
+            else:
+                key_recommend = f"{key_diff} Key (원곡보다 낮게)"
+        else:
+            key_recommend = "원키 (Original Key)"
+
+        # 2. 보컬 트레이닝 피드백 생성 로직 (Stats 기반 정교화)
+        guide = ""
+        power = vocal_stats.get("power", 0)
+        clarity = vocal_stats.get("clarity", 0)
+        emotion = vocal_stats.get("emotion", 0)
+        warmth = vocal_stats.get("warmth", 0)
+
+        if power < 40 and clarity > 60:
+            guide = "음색이 아주 맑고 투명하여 공기 반 소리 반의 매력이 돋보입니다! 다만 장시간 가창 시 성대에 무리가 갈 수 있으니, 호흡을 뱉기 전 복압을 유지하는 '성대 접촉 훈련'을 병행하면 훨씬 안정적인 보컬이 완성됩니다."
+        elif power > 70 and emotion < 40:
+            guide = "성량이 매우 뛰어나고 힘 있는 보컬을 가지고 계시네요! 곡의 몰입도를 높이기 위해, 잔잔한 파트(Verse)에서는 말하듯이 힘을 빼고 부르는 '다이나믹(강약 조절)' 연습을 추가해 보세요."
+        elif clarity < 40 and warmth > 60:
+            guide = "소리의 질감이 묵직하고 따뜻한 공명감이 매우 매력적입니다. 이 매력을 살리면서 가사가 더 잘 들리게 하려면, 노래를 부를 때 입 모양을 세로로 조금 더 벌려 공간을 확보해 보세요."
+        elif emotion > 70:
+            guide = "음정이 다이나믹하게 변하며 감정선이 매우 풍부한 훌륭한 보컬입니다. 현재의 감정 표현을 유지하면서, 고음역대 진입 시 시선을 살짝 아래로 향하게 하면 음이탈을 방지할 수 있습니다."
+        else:
+            guide = "현재 보컬의 전반적인 밸런스가 매우 훌륭합니다! 지금의 톤을 유지하면서 자신이 좋아하는 장르의 곡들을 꾸준히 연습해 보세요."
+
+        # 3. 큐레이션 플레이리스트 (실제 DB에 있는 곡들 중 무작위 3곡 추출, 매칭곡 제외)
+        import copy
+        pool = [s for s in available_songs if s.get("title") != matched_song_title]
+        if len(pool) >= 3:
+            selected_songs = random.sample(pool, 3)
+        else:
+            selected_songs = pool
+
+        playlist = [{"title": s.get("title"), "artist": s.get("artist")} for s in selected_songs]
+        
+        # 만약 DB 곡이 너무 적어서 3곡이 안 채워지면 땜빵
+        while len(playlist) < 3:
+            playlist.append({"title": f"{matched_song_title} (Cover)", "artist": "Various Artists"})
+
+        return {
+            "key": key_recommend,
+            "guide": guide,
+            "playlist": playlist
+        }
+
+    @staticmethod
     def generate_vocal_persona(avg_pitch: float, avg_mfcc: np.ndarray, stats: dict) -> str:
         """Top 2 스탯을 조합해 페르소나를 결정합니다.
         - Pitch 구간 (low/mid/high) 를 먼저 판정합니다.
@@ -141,8 +205,10 @@ class AnalysisService:
         else:
             pitch_group = "high"
 
-        # 2) 상위 2 스탯 추출 (점수 내림차순)
-        sorted_stats = sorted(stats.items(), key=lambda x: x[1], reverse=True)
+        # 2) 상위 2 스탯 추출 (dna_128_points 등 리스트 제외, 점수 내림차순)
+        # dna_128_points는 시각화용이므로 페르소나 계산에서는 제외합니다.
+        filterable_stats = {k: v for k, v in stats.items() if isinstance(v, (int, float))}
+        sorted_stats = sorted(filterable_stats.items(), key=lambda x: x[1], reverse=True)
         top_two = [k for k, _ in sorted_stats[:2]] if len(sorted_stats) >= 2 else [sorted_stats[0][0]]
         # 정렬된 튜플 키 생성 (항상 알파벳 순서) – 중복 방지를 위해 정렬
         combo_key = (pitch_group, *sorted(top_two))
@@ -208,6 +274,13 @@ class AnalysisService:
         avg_mfcc = np.mean(mfcc, axis=1)
         warmth = float(np.mean(avg_mfcc[1:4]))
 
+        # [신규] 6. 128-point DNA (Mel Spectrogram)
+        # 사람의 청각 특성을 반영한 128개의 주파수 대역 에너지 (보통 -80 ~ 0 dB)
+        mel_spec = librosa.feature.melspectrogram(y=y, sr=sr, n_mels=128)
+        mel_spec_db = librosa.power_to_db(mel_spec, ref=np.max)
+        # 보기 좋게 양수로 변환 (+80) 및 정수화
+        dna_128 = [int(v + 80) for v in np.mean(mel_spec_db, axis=1)]
+
         return {
             "pitch": avg_pitch,
             "mfcc": avg_mfcc,
@@ -216,6 +289,7 @@ class AnalysisService:
             "rhythm": rhythm,
             "clarity": clarity,
             "warmth": warmth,
+            "dna_128_points": dna_128,
         }
 
     @staticmethod
@@ -244,6 +318,7 @@ class AnalysisService:
             "power": minmax_scale(raw_features.get("power", 0), "power"),
             "rhythm": minmax_scale(raw_features.get("rhythm", 0), "rhythm"),
             "emotion": minmax_scale(raw_features.get("emotion", 0), "emotion"),
+            "dna_128_points": raw_features.get("dna_128_points", []),
         }
 
     @staticmethod
@@ -422,6 +497,10 @@ class AnalysisService:
                         # 세션이 닫히기 전에 아티스트 정보를 미리 조회합니다.
                         matched_song = db.query(Song).filter(Song.id == matched_song_id).first() if matched_song_id else None
                         matched_artist = matched_song.artist if matched_song else "알 수 없는 아티스트"
+                        matched_song_title = matched_song.title if matched_song else "알 수 없는 곡"
+
+                        # PRO 플레이리스트 추천을 위해 사용 가능한 곡 목록을 메모리에 미리 복사
+                        available_songs_data = [{"title": s.title, "artist": s.artist} for s in songs if s.title and s.artist]
 
                 finally:
                     # DB 세션을 반드시 반환하여 커넥션 풀을 관리합니다.
@@ -459,6 +538,16 @@ class AnalysisService:
             logger.info(f"[AnalysisService] 보컬 페르소나: {vocal_persona}")
             logger.info(f"[AnalysisService] 보컬 스탯: {vocal_stats}")
 
+            # [신규] PRO 솔루션 데이터 생성
+            pro_features = AnalysisService.generate_pro_features(
+                ap,
+                best_song_pitch if 'best_song_pitch' in locals() else 0.0,
+                vocal_stats,
+                matched_artist if 'matched_artist' in locals() else "알 수 없는 아티스트",
+                matched_song_title if 'matched_song_title' in locals() else "알 수 없는 곡",
+                available_songs_data if 'available_songs_data' in locals() else []
+            )
+
             return {
                 "matched_song_id": matched_song_id,
                 "voice_tags": vt,
@@ -466,7 +555,8 @@ class AnalysisService:
                 "pitch_hz": int(ap),
                 "recommend_reason": recommend_reason,
                 "vocal_persona": vocal_persona,
-                "vocal_stats": vocal_stats
+                "vocal_stats": vocal_stats,
+                "pro_features": pro_features
             }
             
         except Exception as e:
@@ -481,6 +571,14 @@ class AnalysisService:
                     logger.info(f"[AnalysisService] 로컬 원본 파일 삭제 완료: {local_file_path}")
                 except Exception as cleanup_error:
                     logger.error(f"[AnalysisService] 원본 파일 삭제 중 오류 발생: {cleanup_error}")
+            
+            # [수정] 트리밍된 임시 파일 삭제 누락 해결
+            if 'trimmed_file_path' in locals() and os.path.exists(trimmed_file_path):
+                try:
+                    os.remove(trimmed_file_path)
+                    logger.info(f"[AnalysisService] 트리밍된 임시 파일 삭제 완료: {trimmed_file_path}")
+                except Exception as cleanup_error:
+                    logger.error(f"[AnalysisService] 트리밍 파일 삭제 중 오류 발생: {cleanup_error}")
                     
             if 'output_dir' in locals() and os.path.exists(output_dir):
                 try:

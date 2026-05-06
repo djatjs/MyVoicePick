@@ -83,6 +83,7 @@ def process_queue_message(message_data: dict):
         recommend_reason = result.get("recommend_reason", "")
         vocal_persona = result.get("vocal_persona", "")
         vocal_stats = result.get("vocal_stats", {})
+        pro_features = result.get("pro_features", {}) # [신규] PRO 솔루션 데이터 가져오기
 
         # 4. 분석 성공 시: 상태를 COMPLETED로 변경 및 결과 업데이트
         task.status = "COMPLETED"
@@ -93,6 +94,7 @@ def process_queue_message(message_data: dict):
         task.recommend_reason = recommend_reason
         task.vocal_persona = vocal_persona
         task.vocal_stats = json.dumps(vocal_stats, ensure_ascii=False)  # dict → JSON 문자열
+        task.pro_features = json.dumps(pro_features, ensure_ascii=False) # [신규] dict → JSON 문자열
 
         db.commit()
         logger.info(f"작업 완료. taskUuid: {task_uuid}, matchedSongId: {matched_song_id}, similarity: {similarity_score}%, persona: {vocal_persona}")

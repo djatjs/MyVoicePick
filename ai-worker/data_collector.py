@@ -11,45 +11,50 @@ import librosa
 import numpy as np
 from sqlalchemy import create_engine, text
 from dotenv import load_dotenv
+import requests
+from bs4 import BeautifulSoup
 
 warnings.filterwarnings('ignore')
 
-# CSV 파일 경로 (스크립트와 같은 폴더 기준)
-CSV_FILE_PATH = os.path.join(os.path.dirname(__file__), "songs.csv")
-
-def load_target_songs_from_csv(csv_path: str) -> list:
+def load_target_songs_from_melon() -> list:
     """
-    songs.csv 파일을 읽어 타겟 곡 리스트를 반환합니다.
-    컬럼 순서: title, artist (헤더 필수)
+    [기능] 멜론 차트 Top 100 웹페이지를 크롤링하여 곡 리스트를 수집합니다.
+    [의도] 유튜브 뮤직의 한국 지역 프리미엄 제한 정책을 우회하여 최신 인기곡을 수집하기 위함입니다.
     """
-    if not os.path.exists(csv_path):
-        print(f"🚨 오류: '{csv_path}' 파일이 존재하지 않습니다.")
-        print("   같은 폴더에 'title,artist' 헤더가 있는 songs.csv 파일을 생성해 주세요.")
-        sys.exit(1)
+    print("  🍈 멜론 차트에서 실시간 인기 곡들을 불러오는 중...")
+    url = "https://www.melon.com/chart/index.htm"
+    # 멜론 서버의 봇 차단을 방지하기 위해 일반 브라우저의 헤더 정보를 추가합니다.
+    headers = {
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36"
+    }
 
-    songs = []
     try:
-        # UTF-8-sig는 Excel에서 저장한 CSV의 BOM 마커를 자동으로 처리합니다.
-        with open(csv_path, newline='', encoding='utf-8-sig') as f:
-            reader = csv.DictReader(f)
-            for row in reader:
-                title = row.get('title', '').strip()
-                artist = row.get('artist', '').strip()
-                if title and artist:
-                    songs.append({"title": title, "artist": artist})
+        response = requests.get(url, headers=headers)
+        soup = BeautifulSoup(response.text, 'html.parser')
+        
+        songs = []
+        # 멜론 차트 페이지의 1~100위 리스트(lst50, lst100)를 파싱합니다.
+        tracks = soup.select('.lst50, .lst100')
+        
+        for track in tracks:
+            title_tag = track.select_one('.ellipsis.rank01 a')
+            artist_tag = track.select_one('.ellipsis.rank02 a')
+            
+            if title_tag and artist_tag:
+                songs.append({
+                    "title": title_tag.text.strip(),
+                    "artist": artist_tag.text.strip()
+                })
+        
+        return songs
+
     except Exception as e:
-        print(f"🚨 CSV 파일 읽기 실패: {e}")
-        sys.exit(1)
-
-    if not songs:
-        print("🚨 CSV 파일에 유효한 데이터가 없습니다. title, artist 컬럼을 확인해 주세요.")
-        sys.exit(1)
-
-    return songs
+        print(f"  🚨 멜론 데이터 수집 중 오류 발생: {e}")
+        return []
 
 
 def main():
-    print("🚀 YouTube 기반 음원 수집 및 보컬 분석 배치를 시작합니다...")
+    print("🚀 YouTube 기반 음원 자동 수집 및 보컬 분석 배치를 시작합니다...")
 
     # 1. 환경 변수 로드
     load_dotenv()
@@ -65,9 +70,14 @@ def main():
         print(f"🚨 DB 연결 실패: {e}")
         sys.exit(1)
 
-    # 2. CSV 파일에서 타겟 곡 리스트 로드 (하드코딩 대체)
-    target_songs = load_target_songs_from_csv(CSV_FILE_PATH)
-    print(f"📌 songs.csv에서 총 {len(target_songs)}곡의 타겟 리스트를 불러왔습니다.")
+    # 2. 멜론 차트에서 자동 수집 (YouTube Music 대체)
+    target_songs = load_target_songs_from_melon()
+    
+    if not target_songs:
+        print("🚨 수집된 곡이 없어 배치를 종료합니다.")
+        return
+
+    print(f"📌 총 {len(target_songs)}곡의 자동 수집 리스트를 확보했습니다.")
 
     # 임시 디렉토리 설정
     temp_dir = "temp"
@@ -80,16 +90,29 @@ def main():
     for idx, song in enumerate(target_songs):
         title = song["title"]
         artist = song["artist"]
+        temp_mp3_path = None
+        specific_demucs_folder = None
 
-        print(f"\n[{idx+1}/{len(target_songs)}] 처리 중: {title} - {artist}")
-
-        # 검색어 생성 (audio 키워드 추가로 오디오 중심 영상 유도)
-        search_query = f"{artist} {title} audio"
-
-        temp_mp3_path = os.path.join(temp_dir, f"track_{idx}.mp3")
-        specific_demucs_folder = os.path.join(demucs_out_dir, "htdemucs", f"track_{idx}")
+        print(f"\n[{idx+1}/{len(target_songs)}] 확인 중: {title} - {artist}")
 
         try:
+            # [추가] 중복 체크: 이미 DB에 있는 곡은 처리를 건너뜁니다.
+            check_query = text("SELECT id FROM songs WHERE title = :title AND artist = :artist")
+            with engine.connect() as conn:
+                existing_song = conn.execute(check_query, {"title": title, "artist": artist}).fetchone()
+                
+            if existing_song:
+                print(f"  ⏩ 이미 수집된 곡입니다. (Skip)")
+                success_count += 1
+                continue
+
+            print(f"  🆕 신규 곡 발견! 수집을 시작합니다.")
+            
+            # 검색어 및 경로 설정
+            search_query = f"{artist} {title} audio"
+            temp_mp3_path = os.path.join(temp_dir, f"track_{idx}.mp3")
+            specific_demucs_folder = os.path.join(demucs_out_dir, "htdemucs", f"track_{idx}")
+
             # 3. YouTube 오디오 추출 (yt-dlp)
             print("  ⬇️ YouTube 검색 및 오디오 다운로드 중...")
 
@@ -126,7 +149,8 @@ def main():
 
             # 4. Demucs 보컬 분리
             print("  ✂️ 보컬 분리 중 (Demucs, 수 분이 소요될 수 있습니다)...")
-            cmd = ["demucs", "-n", "htdemucs", temp_mp3_path, "-o", demucs_out_dir]
+            # 윈도우 환경에서 실행 파일 경로 이슈가 있을 수 있어 sys.executable -m 방식으로 실행 권장
+            cmd = [sys.executable, "-m", "demucs.separate", "-n", "htdemucs", temp_mp3_path, "-o", demucs_out_dir]
             process = subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
 
             if process.returncode != 0:
@@ -154,11 +178,12 @@ def main():
             avg_mfcc = np.mean(mfcc, axis=1).tolist()
             mfcc_json = json.dumps(avg_mfcc)
 
-            # 6. DB 저장
+            # 6. DB 저장 (중복 체크 추가 권장)
             print(f"  💾 DB에 저장 중... (Pitch: {avg_pitch:.2f}Hz)")
             insert_query = text("""
                 INSERT INTO songs (title, artist, album_cover_url, preview_url, pitch, mfcc_vector)
                 VALUES (:title, :artist, :album_cover_url, :preview_url, :pitch, :mfcc)
+                ON DUPLICATE KEY UPDATE pitch = VALUES(pitch), mfcc_vector = VALUES(mfcc_vector)
             """)
 
             with engine.begin() as conn:
@@ -181,10 +206,10 @@ def main():
         finally:
             # 7. 임시 파일 정리
             print("  🧹 임시 파일 정리 중...")
-            if os.path.exists(temp_mp3_path):
+            if temp_mp3_path and os.path.exists(temp_mp3_path):
                 os.remove(temp_mp3_path)
-
-            if os.path.exists(specific_demucs_folder):
+ 
+            if specific_demucs_folder and os.path.exists(specific_demucs_folder):
                 shutil.rmtree(specific_demucs_folder, ignore_errors=True)
 
     print("\n=========================================")

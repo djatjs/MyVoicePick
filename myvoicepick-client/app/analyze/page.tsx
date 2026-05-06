@@ -1,3 +1,4 @@
+import React, { Suspense } from 'react';
 import '../../styles/mvp-design.css';
 import { MvpNav } from '../../components/mvp/MvpNav';
 import { MvpFooter } from '../../components/mvp/MvpFooter';
@@ -8,7 +9,7 @@ export default function AnalyzePage() {
     <main className="mvp-canvas min-h-screen flex flex-col">
       <MvpNav />
       
-      <div className="flex-1 flex flex-col pt-12 pb-24">
+      <div className="flex-1 flex flex-col pt-12 pb-24 animate-fade-in">
         {/* Tool Header Section */}
         <section className="mb-16">
           <div className="mvp-container text-center max-w-5xl mx-auto">
@@ -23,7 +24,9 @@ export default function AnalyzePage() {
         {/* Uploader Section */}
         <section className="relative z-10">
           <div className="mvp-container">
-            <MvpAudioUploader />
+            <Suspense fallback={<div className="text-white text-center">Loading...</div>}>
+              <MvpAudioUploader />
+            </Suspense>
           </div>
         </section>
 

@@ -28,6 +28,7 @@ class AnalysisTask(Base):
     recommend_reason = Column(Text, nullable=True)
     vocal_persona = Column(Text, nullable=True)      # 감성 보컬 타이틀 문자열
     vocal_stats = Column(Text, nullable=True)        # 5가지 특성 수치 (JSON 문자열)
+    pro_features = Column(Text, nullable=True)       # [신규] PRO 유저용 성장 솔루션 (JSON)
 
 class Song(Base):
     """

@@ -26,7 +26,9 @@ public record TaskStatusResponse(
         Integer pitchHz,
         String recommendReason,
         String vocalPersona,           // [추가] 감성 보컬 타이틀
-        Map<String, Integer> vocalStats  // [추가] 5가지 특성 수치 (warmth, clarity, power, rhythm, emotion)
+        Map<String, Object> vocalStats, // [추가] 5가지 특성 수치 + 128포인트 DNA 배열 등
+        String userPlan,               // [신규] 사용자 요금제 (FREE, PRO, STUDIO)
+        Map<String, Object> proFeatures // [신규] PRO 유저 전용 솔루션 데이터
 ) {
     private static final ObjectMapper MAPPER = new ObjectMapper();
 
@@ -44,7 +46,10 @@ public record TaskStatusResponse(
         }
 
         List<String> voiceTags = parseList(task.getVoiceTagsJson());
-        Map<String, Integer> vocalStats = parseMap(task.getVocalStatsJson());
+        Map<String, Object> vocalStats = parseMap(task.getVocalStatsJson());
+        vocalStats.remove("dna_128_points");
+        
+        Map<String, Object> proFeatures = parseMap(task.getProFeaturesJson()); // [신규] PRO 기능 데이터 파싱
 
         return new TaskStatusResponse(
                 task.getTaskUuid(),
@@ -58,7 +63,9 @@ public record TaskStatusResponse(
                 task.getPitchHz(),
                 task.getRecommendReason(),
                 task.getVocalPersona(),
-                vocalStats
+                vocalStats,
+                task.getUser().getPlan().name(), // 실제 사용자의 플랜 정보 반영
+                proFeatures // 실제 DB 연동 데이터 반환
         );
     }
 
@@ -73,11 +80,12 @@ public record TaskStatusResponse(
         }
     }
 
-    /** DB의 JSON 객체 문자열 → Map<String, Integer> 역직렬화. 실패 시 빈 맵 반환. */
-    private static Map<String, Integer> parseMap(String json) {
+    /** DB의 JSON 객체 문자열 → Map<String, Object> 역직렬화. 실패 시 빈 맵 반환. */
+    private static Map<String, Object> parseMap(String json) {
         if (json == null || json.isBlank()) return Collections.emptyMap();
         try {
-            return MAPPER.readValue(json, new TypeReference<Map<String, Integer>>() {});
+            return MAPPER.readValue(json, new TypeReference<Map<String, Object>>() {});
+
         } catch (JsonProcessingException e) {
             return Collections.emptyMap();
         }

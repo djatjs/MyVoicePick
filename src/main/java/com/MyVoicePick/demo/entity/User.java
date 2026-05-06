@@ -33,13 +33,18 @@ public class User {
     @Column(nullable = false)
     private String nickname;
 
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false)
+    private UserPlan plan;
+
     @Column(name = "created_at", nullable = false, updatable = false)
     private LocalDateTime createdAt;
 
     @Builder
-    public User(String email, String nickname) {
+    public User(String email, String nickname, UserPlan plan) {
         this.email = email;
         this.nickname = nickname;
+        this.plan = plan != null ? plan : UserPlan.FREE;
     }
 
     // 엔티티가 처음 DB에 저장되기 전에 자동으로 호출되어 생성 시간을 채워줍니다.

@@ -106,4 +106,23 @@ public class AnalysisService {
 
         return TaskStatusResponse.from(task);
     }
+
+    /**
+     * 유저의 가장 최근 성공한 분석 결과를 조회합니다. (마이페이지용)
+     */
+    public TaskStatusResponse getLatestAnalysisResult(Long userId) {
+        return analysisTaskRepository.findFirstByUserIdOrderByCreatedAtDesc(userId)
+                .map(TaskStatusResponse::from)
+                .orElse(null);
+    }
+
+    /**
+     * 유저의 최근 분석 이력 5개를 조회합니다.
+     */
+    public java.util.List<TaskStatusResponse> getAnalysisHistory(Long userId) {
+        return analysisTaskRepository.findTop5ByUserIdOrderByCreatedAtDesc(userId)
+                .stream()
+                .map(TaskStatusResponse::from)
+                .collect(java.util.stream.Collectors.toList());
+    }
 }

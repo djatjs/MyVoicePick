@@ -1,3 +1,7 @@
+'use client';
+
+import { useEffect } from 'react';
+import { useRouter } from 'next/navigation';
 import '../../styles/mvp-design.css';
 import { MvpNav } from '../../components/mvp/MvpNav';
 import { MvpFooter } from '../../components/mvp/MvpFooter';
@@ -5,6 +9,14 @@ import { MvpButton } from '../../components/mvp/MvpButton';
 import Link from 'next/link';
 
 export default function LoginPage() {
+  const router = useRouter();
+
+  useEffect(() => {
+    if (localStorage.getItem('accessToken')) {
+      router.replace('/mypage');
+    }
+  }, [router]);
+
   return (
     <main className="mvp-canvas min-h-screen flex flex-col">
       <MvpNav />
@@ -51,17 +63,17 @@ export default function LoginPage() {
 
             <div className="flex justify-center gap-6 py-2">
                {/* Naver */}
-               <Link href="#" className="w-12 h-12 rounded-full bg-[#03C75A] flex items-center justify-center transition-opacity hover:opacity-80 shadow-lg" title="Naver Login">
+               <Link href="http://localhost:8080/oauth2/authorization/naver" className="w-12 h-12 rounded-full bg-[#03C75A] flex items-center justify-center transition-opacity hover:opacity-80 shadow-lg" title="Naver Login">
                   <span className="text-white font-black text-xl">N</span>
                </Link>
                {/* Kakao */}
-               <Link href="#" className="w-12 h-12 rounded-full bg-[#FEE500] flex items-center justify-center transition-opacity hover:opacity-80 shadow-lg" title="Kakao Login">
+               <Link href="http://localhost:8080/oauth2/authorization/kakao" className="w-12 h-12 rounded-full bg-[#FEE500] flex items-center justify-center transition-opacity hover:opacity-80 shadow-lg" title="Kakao Login">
                   <svg viewBox="0 0 24 24" className="w-6 h-6 fill-[#3C1E1E]">
                      <path d="M12 3c-4.97 0-9 3.185-9 7.115 0 2.558 1.707 4.8 4.337 6.136l-.81 2.965c-.1.37.125.74.493.74.156 0 .313-.056.442-.17l3.473-2.316c.35.04.706.06 1.065.06 4.97 0 9-3.185 9-7.115S16.97 3 12 3z"/>
                   </svg>
                </Link>
                {/* Google */}
-               <Link href="#" className="w-12 h-12 rounded-full bg-white flex items-center justify-center transition-opacity hover:opacity-80 shadow-lg" title="Google Login">
+               <Link href="http://localhost:8080/oauth2/authorization/google" className="w-12 h-12 rounded-full bg-white flex items-center justify-center transition-opacity hover:opacity-80 shadow-lg" title="Google Login">
                   <svg viewBox="0 0 24 24" className="w-6 h-6">
                      <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
                      <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/>

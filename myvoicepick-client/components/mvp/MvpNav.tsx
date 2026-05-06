@@ -1,8 +1,26 @@
-import React from 'react';
+'use client';
+
+import React, { useEffect, useState } from 'react';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import { MvpButton } from './MvpButton';
 
 export const MvpNav: React.FC = () => {
+  const router = useRouter();
+  const [isLoggedIn, setIsLoggedIn] = useState(false);
+
+  useEffect(() => {
+    // 클라이언트 마운트 후 토큰 여부 확인
+    const token = localStorage.getItem('accessToken');
+    setIsLoggedIn(!!token);
+  }, []);
+
+  const handleLogout = () => {
+    localStorage.removeItem('accessToken');
+    setIsLoggedIn(false);
+    router.push('/');
+  };
+
   return (
     <nav className="h-[80px] bg-[var(--mvp-bg)]/80 backdrop-blur-md border-b border-white/5 flex items-center justify-between px-8 sticky top-0 z-50">
       <div className="flex items-center gap-12">
@@ -15,18 +33,29 @@ export const MvpNav: React.FC = () => {
           <span className="text-2xl font-bold tracking-tighter mvp-title">MyVoicePick</span>
         </Link>
         <div className="hidden md:flex items-center gap-8 text-sm font-semibold text-[var(--mvp-text-muted)]">
-          <Link href="/features" className="hover:text-white transition-colors">Features</Link>
-          <Link href="/guide" className="hover:text-white transition-colors">Guide</Link>
-          <Link href="/pricing" className="hover:text-white transition-colors">Pricing</Link>
+          <Link href="/#features" className="hover:text-white transition-colors">Features</Link>
+          <Link href="/#guide" className="hover:text-white transition-colors">Guide</Link>
+          <Link href="/#pricing" className="hover:text-white transition-colors">Pricing</Link>
         </div>
       </div>
       <div className="flex items-center gap-4">
-        <Link href="/login">
-          <MvpButton variant="ghost" size="md" className="hidden sm:inline-flex">Log In</MvpButton>
-        </Link>
-        <Link href="/analyze">
-          <MvpButton variant="primary" size="md">Get Started</MvpButton>
-        </Link>
+        {isLoggedIn ? (
+          <>
+            <Link href="/mypage">
+              <MvpButton variant="ghost" size="md" className="hidden sm:inline-flex text-indigo-400">마이페이지</MvpButton>
+            </Link>
+            <MvpButton variant="outline" size="md" onClick={handleLogout}>로그아웃</MvpButton>
+          </>
+        ) : (
+          <>
+            <Link href="/login">
+              <MvpButton variant="ghost" size="md" className="hidden sm:inline-flex">Log In</MvpButton>
+            </Link>
+            <Link href="/analyze">
+              <MvpButton variant="primary" size="md">Get Started</MvpButton>
+            </Link>
+          </>
+        )}
       </div>
     </nav>
   );

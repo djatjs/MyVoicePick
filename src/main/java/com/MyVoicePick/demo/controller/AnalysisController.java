@@ -1,10 +1,14 @@
 package com.MyVoicePick.demo.controller;
 
 import com.MyVoicePick.demo.dto.TaskStatusResponse;
+import com.MyVoicePick.demo.entity.User;
+import com.MyVoicePick.demo.repository.UserRepository;
 import com.MyVoicePick.demo.service.AnalysisService;
 import com.MyVoicePick.demo.service.S3Uploader;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
@@ -21,6 +25,7 @@ public class AnalysisController {
 
     private final AnalysisService analysisService;
     private final S3Uploader s3Uploader;
+    private final UserRepository userRepository;
 
     /**
      * [엔드포인트 1] 음성 파일 분석 요청 (비동기)
@@ -28,22 +33,24 @@ public class AnalysisController {
      */
     @PostMapping
     public ResponseEntity<Map<String, String>> requestAnalysis(
-            // Spring Boot 3.2+ 버전부터는 파라미터 이름 추론이 기본적으로 비활성화되어 에러(IllegalArgumentException)가 
-            // 자주 발생하므로, @RequestParam과 @PathVariable 내부에 "이름"을 명시적으로 적어주는 방어 코드를 적용했습니다.
-            @RequestParam("userId") Long userId,
-            @RequestParam("file") MultipartFile file
-    ) {
-        // S3에 실제 파일 업로드 후 반환된 파일명(Key) 확보
+            @RequestParam("file") MultipartFile file) {
+        // 1. 현재 로그인한 사용자의 이메일 확보 (JwtAuthenticationFilter에서 저장함)
+        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+        String userEmail = (String) authentication.getPrincipal();
+
+        // 2. 이메일을 통해 DB에서 User 엔티티 조회
+        User user = userRepository.findByEmail(userEmail)
+                .orElseThrow(() -> new RuntimeException("User not found: " + userEmail));
+
+        // 3. S3에 실제 파일 업로드
         String s3Key = s3Uploader.uploadFile(file);
 
-        // 서비스 호출을 통해 분석 태스크(PENDING)를 DB에 적재 & 큐잉 대기 후 영수증(UUID) 확보
-        String taskUuid = analysisService.requestAnalysis(userId, s3Key);
+        // 4. 서비스 호출 (조회한 User의 실제 ID 사용)
+        String taskUuid = analysisService.requestAnalysis(user.getId(), s3Key);
 
-        // JSON 형태로 돌려주기 위해 Map 사용 (추후 CreateAnalysisResponse 같은 DTO 객체를 만들어 써도 좋습니다.)
         Map<String, String> responseBody = new HashMap<>();
         responseBody.put("taskId", taskUuid);
 
-        // HTTP 202 Accepted: "요청이 정상 접수되었고, 프로세스는 비동기적으로 처리 중입니다" 라는 명확한 의사 전달
         return ResponseEntity.accepted().body(responseBody);
     }
 
@@ -53,13 +60,42 @@ public class AnalysisController {
      */
     @GetMapping("/{taskId}/status")
     public ResponseEntity<TaskStatusResponse> getTaskStatus(
-            @PathVariable("taskId") String taskId
-    ) {
+            @PathVariable("taskId") String taskId) {
         // 비즈니스 로직(DB 검증, 상태 체크, 매핑)은 모두 Service와 DTO에서 우아하게 처리했으므로
         // 컨트롤러는 아주 가볍게 의존성만 넘겨줍니다. (Controller는 우편배달부 역할에만 충실해야 함)
         TaskStatusResponse response = analysisService.getTaskStatus(taskId);
-
-        // HTTP 200 OK
         return ResponseEntity.ok(response);
+    }
+
+    /**
+     * [엔드포인트 3] 나의 최신 분석 결과 조회 (마이페이지용)
+     */
+    @GetMapping("/my-latest")
+    public ResponseEntity<TaskStatusResponse> getLatestAnalysis() {
+        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+        String userEmail = (String) authentication.getPrincipal();
+
+        User user = userRepository.findByEmail(userEmail)
+                .orElseThrow(() -> new RuntimeException("User not found: " + userEmail));
+
+        TaskStatusResponse response = analysisService.getLatestAnalysisResult(user.getId());
+        
+        return ResponseEntity.ok(response);
+    }
+
+    /**
+     * [엔드포인트 4] 나의 최근 분석 이력 조회 (마이페이지용)
+     */
+    @GetMapping("/my-history")
+    public ResponseEntity<java.util.List<TaskStatusResponse>> getAnalysisHistory() {
+        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+        String userEmail = (String) authentication.getPrincipal();
+
+        User user = userRepository.findByEmail(userEmail)
+                .orElseThrow(() -> new RuntimeException("User not found: " + userEmail));
+
+        java.util.List<TaskStatusResponse> history = analysisService.getAnalysisHistory(user.getId());
+        
+        return ResponseEntity.ok(history);
     }
 }

@@ -23,4 +23,14 @@ public interface AnalysisTaskRepository extends JpaRepository<AnalysisTask, Long
      * (현재는 기본 메서드로 생성 후, 성능 최적화가 필요할 때 @EntityGraph나 fetch join을 추가하는 것을 권장합니다.)
      */
     Optional<AnalysisTask> findByTaskUuid(String taskUuid);
+
+    /**
+     * 유저의 가장 최근 분석 결과를 가져옵니다. (마이페이지용)
+     */
+    Optional<AnalysisTask> findFirstByUserIdOrderByCreatedAtDesc(Long userId);
+
+    /**
+     * 유저의 최근 분석 이력 5개를 가져옵니다.
+     */
+    java.util.List<AnalysisTask> findTop5ByUserIdOrderByCreatedAtDesc(Long userId);
 }

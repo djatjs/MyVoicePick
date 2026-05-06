@@ -80,6 +80,10 @@ public class AnalysisTask {
     @Column(name = "vocal_stats", columnDefinition = "TEXT")
     private String vocalStatsJson;
 
+    // [신규] PRO 유저 전용 솔루션 (JSON 문자열: key, guide, playlist)
+    @Column(name = "pro_features", columnDefinition = "TEXT")
+    private String proFeaturesJson;
+
     @Builder
     public AnalysisTask(String taskUuid, User user, String s3FileUrl, AnalysisStatus status) {
         this.taskUuid = taskUuid;
