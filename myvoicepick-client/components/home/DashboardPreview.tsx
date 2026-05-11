@@ -42,7 +42,7 @@ export function DashboardPreview() {
                   {/* 시각화 원형 차트 */}
                   <div className="relative w-48 h-48 flex items-center justify-center">
                     <div className="absolute inset-0 border-4 border-indigo-500/20 rounded-full"></div>
-                    <div 
+                    <div
                       className="absolute inset-0 border-4 border-indigo-500 rounded-full border-t-transparent animate-spin"
                       style={{ animationDuration: '3s' }}
                     ></div>
@@ -60,13 +60,13 @@ export function DashboardPreview() {
                         <span className="text-indigo-400">{pitch} Hz</span>
                       </div>
                       <div className="h-1.5 w-full bg-white/5 rounded-full overflow-hidden">
-                        <div 
-                          className="h-full bg-indigo-500 transition-all duration-500 ease-out" 
+                        <div
+                          className="h-full bg-indigo-500 transition-all duration-500 ease-out"
                           style={{ width: `${(pitch / 600) * 100}%` }}
                         ></div>
                       </div>
                     </div>
-                    
+
                     <div className="space-y-2">
                       <div className="flex justify-between text-xs font-bold">
                         <span className="text-white/60">Harmonics / Resonance</span>
@@ -93,7 +93,7 @@ export function DashboardPreview() {
                 </div>
               </div>
             </div>
-            
+
             {/* 장식용 글로우 */}
             <div className="absolute -z-10 inset-0 bg-indigo-500/20 blur-[100px] rounded-full scale-75 opacity-50"></div>
           </div>
@@ -101,12 +101,12 @@ export function DashboardPreview() {
           {/* 오른쪽: 설명 텍스트 */}
           <div className="lg:col-span-5 space-y-8">
             <div className="space-y-4">
-              <div className="w-12 h-12 bg-white/5 rounded-2xl flex items-center justify-center border border-white/10">
+              {/* <div className="w-12 h-12 bg-white/5 rounded-2xl flex items-center justify-center border border-white/10">
                 <BarChart3 className="text-indigo-400" />
-              </div>
+              </div> */}
               <h3 className="text-3xl font-bold leading-tight">데이터로 증명하는 <br />당신의 목소리</h3>
               <p className="text-[var(--mvp-text-muted)] leading-relaxed">
-                단순히 '비슷하다'는 느낌을 넘어, 주파수 대역별 특징과 발성 메커니즘을 분석합니다. 
+                단순히 '비슷하다'는 느낌을 넘어, 주파수 대역별 특징과 발성 메커니즘을 분석합니다.
                 전문적인 보컬 트레이너가 옆에 있는 것처럼 당신의 강점과 보완점을 수치로 보여드립니다.
               </p>
             </div>
