@@ -30,7 +30,7 @@ public interface AnalysisTaskRepository extends JpaRepository<AnalysisTask, Long
     Optional<AnalysisTask> findFirstByUserIdOrderByCreatedAtDesc(Long userId);
 
     /**
-     * 유저의 최근 분석 이력 5개를 가져옵니다.
+     * 유저의 모든 분석 이력을 최신순으로 가져옵니다.
      */
-    java.util.List<AnalysisTask> findTop5ByUserIdOrderByCreatedAtDesc(Long userId);
+    java.util.List<AnalysisTask> findAllByUserIdOrderByCreatedAtDesc(Long userId);
 }

@@ -25,48 +25,50 @@ interface Props {
  */
 export default function ProInsights({ latestAnalysis, userPlan }: Props) {
   return (
-    <div className="md:w-80 flex flex-col p-8 bg-white/[0.03] rounded-[32px] border border-white/5 relative z-10">
+    <div className="flex flex-col h-full p-8 bg-gradient-to-b from-slate-800/40 to-transparent rounded-[32px] border border-white/10 relative z-10 shadow-2xl backdrop-blur-xl">
       <div className="space-y-6 flex-1">
         <div className="flex items-center justify-between">
-          <div className="w-12 h-12 bg-rose-500/10 rounded-2xl flex items-center justify-center text-rose-400 border border-rose-500/20">
+          <div className="w-12 h-12 bg-rose-500/10 rounded-2xl flex items-center justify-center text-rose-400 border border-rose-500/20 shadow-[0_0_15px_rgba(244,63,94,0.3)]">
             <Music className="w-6 h-6" />
           </div>
           {latestAnalysis && (
-            <div className="px-2 py-1 bg-white/5 rounded-lg text-[9px] font-bold text-white/40 uppercase tracking-tighter">
-              Match Score: {latestAnalysis.similarityScore || 0}%
+            <div className="px-3 py-1.5 bg-white/5 rounded-full text-[10px] font-black text-white/60 uppercase tracking-widest border border-white/5 shadow-inner">
+              Match <span className="text-emerald-400 ml-1">{latestAnalysis.similarityScore || 0}%</span>
             </div>
           )}
         </div>
 
-        <div className="space-y-1">
+        <div className="space-y-2">
           <p className="text-[10px] font-black text-rose-400 uppercase tracking-widest">Recommended Track</p>
-          <p className="text-xl font-black text-white leading-tight truncate">
+          <p className="text-2xl font-black text-white leading-tight truncate drop-shadow-md">
             {latestAnalysis?.matchedSongTitle || "Ready to match"}
           </p>
-          <p className="text-xs font-bold text-white/30">
+          <p className="text-sm font-bold text-white/40">
             {latestAnalysis?.matchedArtist || "Artist Name"}
           </p>
         </div>
 
         {/* PRO Insights Preview */}
-        <div className="pt-6 border-t border-white/5 space-y-4">
+        <div className="pt-6 border-t border-white/10 space-y-4">
           <div className="flex items-center justify-between text-[10px] font-black uppercase tracking-widest">
-            <span className="text-white/40">Pro Insights</span>
-            {userPlan === 'FREE' && <ShieldCheck className="w-3 h-3 text-amber-500" />}
+            <span className="text-white/60">Pro Insights</span>
+            {userPlan === 'FREE' && <ShieldCheck className="w-4 h-4 text-amber-500 animate-pulse" />}
           </div>
 
           <div className="space-y-3">
             {/* Key Recommendation */}
-            <div className="flex items-center justify-between p-3 bg-white/[0.02] rounded-xl border border-white/5">
-              <span className="text-[10px] font-bold text-white/30">Recommended Key</span>
-              <span className={`text-[10px] font-black ${userPlan === 'PRO' ? 'text-indigo-400' : 'text-white/10'}`}>
+            <div className="flex items-center justify-between p-4 bg-slate-900/60 rounded-2xl border border-slate-700/50 shadow-inner">
+              <span className="text-[10px] font-bold text-white/50">Recommended Key</span>
+              <span className={`text-xs font-black ${userPlan === 'PRO' ? 'text-indigo-400' : 'text-white/20'}`}>
                 {userPlan === 'PRO' ? (latestAnalysis?.proFeatures?.key || 'Calculating...') : 'Locked'}
               </span>
             </div>
             {/* Practice Guide Preview */}
-            <div className="p-3 bg-white/[0.02] rounded-xl border border-white/5">
-              <p className="text-[10px] font-bold text-white/30 mb-2">Vocal Guide</p>
-              <p className={`text-[10px] leading-relaxed font-medium whitespace-pre-wrap break-keep ${userPlan === 'PRO' ? 'text-white/60' : 'text-white/5'}`}>
+            <div className="p-4 bg-slate-900/60 rounded-2xl border border-slate-700/50 shadow-inner">
+              <p className="text-[10px] font-bold text-white/50 mb-3 flex items-center gap-1.5">
+                <Zap className="w-3 h-3 text-amber-400" /> Vocal Guide
+              </p>
+              <p className={`text-[11px] leading-relaxed font-medium whitespace-pre-wrap break-keep ${userPlan === 'PRO' ? 'text-white/80' : 'text-white/10 blur-[2px]'}`}>
                 {userPlan === 'PRO' ? (latestAnalysis?.proFeatures?.guide || 'Waiting for insights...') : 'Upgrade to Pro to unlock personalized vocal training guides and key recommendations.'}
               </p>
             </div>
@@ -75,8 +77,8 @@ export default function ProInsights({ latestAnalysis, userPlan }: Props) {
       </div>
 
       {latestAnalysis && (
-        <Link href={`/analyze?taskId=${latestAnalysis.taskId}`} className="mt-8 py-3 bg-indigo-500 rounded-xl text-[10px] font-black text-white hover:bg-indigo-600 text-center transition-all uppercase tracking-widest shadow-lg shadow-indigo-500/20">
-          Full Report →
+        <Link href={`/analyze?taskId=${latestAnalysis.taskId}`} className="mt-8 py-4 bg-white text-black rounded-2xl text-[11px] font-black hover:bg-gray-200 text-center transition-all uppercase tracking-widest shadow-[0_0_20px_rgba(255,255,255,0.2)]">
+          View Full Report &rarr;
         </Link>
       )}
     </div>

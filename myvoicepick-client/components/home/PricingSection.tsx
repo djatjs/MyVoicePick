@@ -1,8 +1,41 @@
+'use client';
+
 import React from 'react';
 import { MvpButton } from '../mvp/MvpButton';
+import { useEffect, useState } from 'react';
 import { Check } from 'lucide-react';
+import { TossPaymentModal } from '../mvp/TossPaymentModal';
 
 export function PricingSection() {
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [selectedPlan, setSelectedPlan] = useState('PRO');
+
+  const handlePaymentClick = async (plan: string) => {
+    const token = localStorage.getItem('accessToken');
+    if (!token) {
+      alert('로그인이 필요한 서비스입니다. 로그인 페이지로 이동합니다.');
+      window.location.href = '/login';
+      return;
+    }
+    
+    try {
+      const res = await fetch('/api/v1/users/me', {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      if (res.ok) {
+        const data = await res.json();
+        if (data.plan === 'PRO' || data.plan === 'STUDIO') {
+          alert('이미 상위 플랜을 구독 중입니다!');
+          return;
+        }
+      }
+    } catch (e) {
+      console.error('Failed to fetch user plan:', e);
+    }
+
+    setSelectedPlan(plan);
+    setIsModalOpen(true);
+  };
   return (
     <section id="pricing" className="mvp-section pb-24 relative z-10 scroll-mt-20">
       <div className="mvp-container">
@@ -11,7 +44,7 @@ export function PricingSection() {
           <span className="mvp-gradient-text text-xs font-black uppercase tracking-[0.3em] mb-4 block">Simple Pricing</span>
           <h2 className="text-4xl md:text-5xl font-black mb-6">Scale Your Sound.</h2>
           <p className="text-lg text-[var(--mvp-text-muted)] break-keep leading-relaxed md:whitespace-nowrap max-w-2xl mx-auto">
-            당신의 보컬 여정에 맞는 플랜을 선택하세요. 기본적인 분석부터 전문적인 레코딩 가이드까지 제공합니다.
+            나에게 꼭 맞는 플랜을 선택하세요. AI 기반의 아티스트 매칭부터 전문가급 레코딩 가이드까지 제공합니다.
           </p>
         </div>
 
@@ -49,7 +82,7 @@ export function PricingSection() {
                 </div>
               </li>
             </ul>
-            <MvpButton variant="outline" className="w-full">시작하기</MvpButton>
+            <MvpButton variant="outline" className="w-full" onClick={() => window.location.href = '/analyze'}>시작하기</MvpButton>
           </div>
 
           {/* Pro Plan */}
@@ -87,7 +120,7 @@ export function PricingSection() {
                 </div>
               </li>
             </ul>
-            <MvpButton variant="primary" className="w-full">구독하기</MvpButton>
+            <MvpButton variant="primary" className="w-full" onClick={() => handlePaymentClick('PRO')}>구독하기</MvpButton>
           </div>
 
           {/* Studio Plan */}
@@ -121,10 +154,15 @@ export function PricingSection() {
                 </div>
               </li>
             </ul>
-            <MvpButton variant="outline" className="w-full">문의하기</MvpButton>
+            <MvpButton variant="outline" className="w-full">준비중</MvpButton>
           </div>
         </div>
       </div>
+      <TossPaymentModal
+        isOpen={isModalOpen}
+        onClose={() => setIsModalOpen(false)}
+        plan={selectedPlan}
+      />
     </section>
   );
 }

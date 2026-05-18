@@ -45,7 +45,8 @@ public class SecurityConfig {
             
             .authorizeHttpRequests(auth -> auth
                 .requestMatchers("/", "/login/**", "/oauth2/**").permitAll()
-                .requestMatchers("/api/v1/analyze/**").authenticated() // 분석 API는 인증 필수
+                .requestMatchers("/api/v1/payment/mock-success").permitAll() // Mock 결제 성공 페이지는 누구나 접근 가능
+                .requestMatchers("/api/v1/analyze/**", "/api/v1/payment/**").authenticated() // 분석 및 결제 API는 인증 필수
                 .anyRequest().permitAll()
             )
             

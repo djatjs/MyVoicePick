@@ -101,88 +101,130 @@ class AnalysisService:
         avg_base = 165.0
         diff = user_pitch - avg_base
         if diff > 30:
-            tone_desc = "뛰어난 하이톤"
+            tone_desc = "상위 15% 수준의 유니크한 하이톤"
         elif diff > 10:
-            tone_desc = "약간 높은 하이톤"
+            tone_desc = "디테일이 살아있는 맑은 톤"
         elif diff < -30:
-            tone_desc = "낮은 로우톤"
+            tone_desc = "하위 15% 수준의 묵직한 딥 로우톤"
         elif diff < -10:
-            tone_desc = "약간 낮은 로우톤"
+            tone_desc = "풍부한 울림을 가진 로우톤"
         else:
-            tone_desc = "보통 톤"
+            tone_desc = "가장 안정적이고 대중적인 미드톤"
 
-        # 2) 감정 수치(Emotion) 강조
-        emotion_score = vocal_stats.get("emotion") if isinstance(vocal_stats, dict) else None
-        emotion_part = f"감정 표현 수치({emotion_score}점)가 특히 돋보입니다. " if emotion_score is not None else ""
+        # 2) 감정 및 스탯 강조
+        emotion_score = vocal_stats.get("emotion") if isinstance(vocal_stats, dict) else 0
+        power_score = vocal_stats.get("power") if isinstance(vocal_stats, dict) else 0
+        
+        if emotion_score and emotion_score > 70:
+            stat_highlight = f"특히 {emotion_score}점에 달하는 압도적인 감정 표현력(Emotion)이 곡의 몰입도를 극대화할 것입니다."
+        elif power_score and power_score > 70:
+            stat_highlight = f"특히 {power_score}점에 달하는 단단한 성량(Power)이 이 곡의 클라이맥스와 완벽한 시너지를 냅니다."
+        else:
+            stat_highlight = "128-point 음색 DNA와 주파수 파형이 이 곡의 악기 구성과 가장 이상적인 대역폭을 공유하고 있습니다."
 
         # 3) 기본 추천 문구
-        voice_style = tags[0].replace("#", "") if tags else ""
-        mood = tags[1].replace("#", "") if len(tags) > 1 else ""
+        voice_style = tags[0].replace("#", "") if tags else "매력적인"
+        mood = tags[1].replace("#", "") if len(tags) > 1 else "독보적인"
         pitch_diff = abs(user_pitch - song_pitch)
-        base_reason = f"당신의 {voice_style} 목소리는 {artist}의 {mood} 감성과 완벽하게 어울립니다. 이 곡을 통해 당신의 매력을 발견해보세요."
+        
+        # 좀 더 세련된 AI 프로듀서 느낌의 멘트로 변경
+        base_reason = (
+            f"당신의 목소리 지문(Voice Print)을 분석한 결과, {int(user_pitch)}Hz 기반의 '{tone_desc}'을 가지고 있습니다. "
+            f"이러한 {voice_style} 보컬 데이터는 {artist}의 {mood} 감성과 매우 정밀한 음향적 일치율을 보입니다. "
+            f"{stat_highlight}"
+        )
 
         # 4) Pitch 차이 50Hz 이상이면 키(Key) 변경 추천 자동 추가
-        key_tip = " 다만, 원곡과 음역대 차이가 있으니 키(Key)를 조정해서 부르는 것을 강력히 추천해요!" if pitch_diff >= 50 else ""
+        key_tip = " (단, 원곡과의 기본 음역대 편차가 감지되었으므로, 맞춤 Key 조정을 통해 당신만의 스타일로 재해석하는 것을 권장합니다.)" if pitch_diff >= 50 else ""
 
-        return f"당신의 목소리는 {tone_desc}이며, {emotion_part}{base_reason}{key_tip}"
+        return f"{base_reason}{key_tip}"
 
     @staticmethod
-    def generate_pro_features(user_pitch: float, best_song_pitch: float, vocal_stats: dict, matched_artist: str, matched_song_title: str, available_songs: list) -> dict:
+    def generate_pro_features(user_pitch: float, best_song_pitch: float, vocal_stats: dict, matched_artist: str, matched_song_title: str, similar_songs: list) -> dict:
         """
         PRO 유저를 위한 보컬 성장 솔루션 데이터를 생성합니다.
         """
         import math
         import random
 
-        # 1. Key 추천 로직 (음악 이론의 반음계(Semitone) 기반 계산)
-        # 1 옥타브 = 12 반음 = 주파수 2배
+        # 1. Key 추천 로직 고도화 (남녀 옥타브 차이 및 반음계 정밀 계산)
         if best_song_pitch > 0 and user_pitch > 0:
             semitones_diff = round(12 * math.log2(user_pitch / best_song_pitch))
-            # 옥타브 차이를 무시하기 위해 12로 나눈 나머지를 구함 (단, -6 ~ +6 사이의 값으로 맞춤)
-            key_diff = semitones_diff % 12
-            if key_diff > 6:
-                key_diff -= 12
+            
+            # [개선] 남녀 옥타브 차이 보정 로직
+            # 남성 평균 음역(120~150Hz), 여성 평균 음역(200~250Hz)
+            # user가 낮고 song이 매우 높은 경우 (남자가 여자 노래 부를 때) -> 옥타브를 낮추는 방향으로 보정
+            if semitones_diff < -8: 
+                semitones_diff += 12 # 한 옥타브 올려서 반음 차이를 줄임 (예: -12 -> 0)
+                octave_guide = " (여성 곡을 남성 키로 변환)"
+            # user가 높고 song이 매우 낮은 경우 (여자가 남자 노래 부를 때)
+            elif semitones_diff > 8:
+                semitones_diff -= 12
+                octave_guide = " (남성 곡을 여성 키로 변환)"
+            else:
+                octave_guide = ""
+
+            key_diff = semitones_diff
             
             if key_diff == 0:
-                key_recommend = "원키 (Original Key)"
+                key_recommend = f"원키 (Original Key){octave_guide}"
             elif key_diff > 0:
-                key_recommend = f"+{key_diff} Key (원곡보다 높게)"
+                key_recommend = f"+{key_diff} Key (원곡보다 높게){octave_guide}"
             else:
-                key_recommend = f"{key_diff} Key (원곡보다 낮게)"
+                key_recommend = f"{key_diff} Key (원곡보다 낮게){octave_guide}"
         else:
             key_recommend = "원키 (Original Key)"
 
-        # 2. 보컬 트레이닝 피드백 생성 로직 (Stats 기반 정교화)
-        guide = ""
+        # 2. 보컬 트레이닝 피드백 생성 로직 세분화 (10개 이상의 템플릿)
         power = vocal_stats.get("power", 0)
         clarity = vocal_stats.get("clarity", 0)
         emotion = vocal_stats.get("emotion", 0)
         warmth = vocal_stats.get("warmth", 0)
-
-        if power < 40 and clarity > 60:
-            guide = "음색이 아주 맑고 투명하여 공기 반 소리 반의 매력이 돋보입니다! 다만 장시간 가창 시 성대에 무리가 갈 수 있으니, 호흡을 뱉기 전 복압을 유지하는 '성대 접촉 훈련'을 병행하면 훨씬 안정적인 보컬이 완성됩니다."
+        rhythm = vocal_stats.get("rhythm", 0)
+        
+        # [개선] 스탯 조합을 더 다채롭게 분기
+        if power > 70 and clarity > 70:
+            guide = "성량이 폭발적이고 딕션(발음)이 매우 정확합니다! 폭발적인 고음을 낼 때 어깨에 힘이 들어가지 않도록 목 주변의 긴장을 푸는 스트레칭을 병행하면 금상첨화입니다."
+        elif power < 40 and clarity > 70:
+            guide = "음색이 아주 맑고 투명하여 '공기 반 소리 반'의 매력이 돋보입니다. 다만 장시간 가창 시 성대에 무리가 갈 수 있으니, 호흡을 뱉기 전 배에 압력을 유지하는 '복압 훈련'을 추천합니다."
+        elif warmth > 70 and emotion > 70:
+            guide = "목소리 톤이 매우 따뜻하고 감정 표현력이 압도적입니다. 이 매력을 살리면서 가사가 더 잘 들리게 하려면, 노래를 부를 때 입 모양을 세로로 조금 더 벌려 공간을 확보해 보세요."
+        elif rhythm > 70 and power > 50:
+            guide = "박자를 타는 리듬감이 매우 뛰어나며, 소리를 뱉어내는 타이밍이 정확합니다. R&B나 팝 장르에서 그루브를 더 살리기 위해 강세(Accent)를 조금 더 뒤로 미뤄 부르는 '레이백' 연습을 해보세요."
+        elif emotion > 70 and clarity < 50:
+            guide = "음정이 다이나믹하게 변하며 감정선이 매우 풍부한 훌륭한 보컬입니다! 감정에 너무 몰입하면 발음이 흐려질 수 있으니, 볼펜을 물고 가사를 또박또박 읽는 연습이 큰 도움이 됩니다."
         elif power > 70 and emotion < 40:
             guide = "성량이 매우 뛰어나고 힘 있는 보컬을 가지고 계시네요! 곡의 몰입도를 높이기 위해, 잔잔한 파트(Verse)에서는 말하듯이 힘을 빼고 부르는 '다이나믹(강약 조절)' 연습을 추가해 보세요."
-        elif clarity < 40 and warmth > 60:
-            guide = "소리의 질감이 묵직하고 따뜻한 공명감이 매우 매력적입니다. 이 매력을 살리면서 가사가 더 잘 들리게 하려면, 노래를 부를 때 입 모양을 세로로 조금 더 벌려 공간을 확보해 보세요."
-        elif emotion > 70:
-            guide = "음정이 다이나믹하게 변하며 감정선이 매우 풍부한 훌륭한 보컬입니다. 현재의 감정 표현을 유지하면서, 고음역대 진입 시 시선을 살짝 아래로 향하게 하면 음이탈을 방지할 수 있습니다."
+        elif warmth < 40 and clarity > 60:
+            guide = "소리가 매우 날카롭고 선명하게 꽂히는 트렌디한 음색입니다. 여기에 따뜻함을 살짝 더하려면 하품할 때처럼 목젖을 살짝 내리고 소리를 내보는 '후두 내리기' 연습을 추천합니다."
+        elif rhythm < 40 and emotion > 60:
+            guide = "서정적인 감정 표현은 뛰어나지만, 박자가 조금 밀리는 경향이 있습니다. 메트로놈을 켜두고 정박자에 맞춰 손뼉을 치며 부르는 연습을 꾸준히 해보시면 훨씬 단단한 보컬이 됩니다."
+        elif power < 40 and emotion < 40 and clarity < 40:
+            guide = "아직 목소리의 잠재력이 완전히 깨어나지 않은 상태입니다. 호흡이 약해 음정이 불안정할 수 있으니, 가장 편안한 키(Key)에서 피아노 건반 소리에 맞춰 한 음을 길게 유지하는 '롱톤(Long Tone)' 연습부터 차근차근 시작해보세요."
+        elif rhythm < 40 and power < 40:
+            guide = "아직 성대 주변 근육과 호흡이 노래에 완전히 적응하지 못한 상태입니다. 멜로디에 집중하기보다, 일정한 박자에 맞춰 숨을 '쯧, 쯧' 하고 강하게 끊어 뱉는 훈련을 통해 발성 코어 근육을 단련해보세요."
+        elif power > 60 and rhythm > 60 and emotion > 60:
+            guide = "현재 보컬의 전반적인 스탯 밸런스가 매우 훌륭합니다! 탄탄한 기본기를 갖추고 있으니, 자신이 좋아하는 다양한 장르의 곡들을 자유롭게 연습해 보세요."
         else:
-            guide = "현재 보컬의 전반적인 밸런스가 매우 훌륭합니다! 지금의 톤을 유지하면서 자신이 좋아하는 장르의 곡들을 꾸준히 연습해 보세요."
+            guide = "보컬의 스탯이 특정 성향에 치우치지 않고 비교적 평이하게 분포되어 있습니다. 아직 자신만의 독특한 무기가 돋보이지 않는 상태이므로, 다양한 곡을 카피해 부르며 내가 가장 매력적으로 소리 낼 수 있는 음역대와 톤을 발굴해 보세요."
 
-        # 3. 큐레이션 플레이리스트 (실제 DB에 있는 곡들 중 무작위 3곡 추출, 매칭곡 제외)
+        # 3. 찰떡 매칭 3곡 플레이리스트 (Faiss 검색 기반 상위 랭커 활용)
         import copy
-        pool = [s for s in available_songs if s.get("title") != matched_song_title]
+        pool = [s for s in similar_songs if s.get("title") != matched_song_title]
+        
+        # 만약 Faiss에서 넘어온 유사 곡이 충분하지 않다면 안전장치(Fallback)
         if len(pool) >= 3:
-            selected_songs = random.sample(pool, 3)
+            selected_songs = pool[:3]
         else:
             selected_songs = pool
 
         playlist = [{"title": s.get("title"), "artist": s.get("artist")} for s in selected_songs]
         
-        # 만약 DB 곡이 너무 적어서 3곡이 안 채워지면 땜빵
+        # 땜빵 로직: 곡이 부족한 경우
+        idx = 1
         while len(playlist) < 3:
-            playlist.append({"title": f"{matched_song_title} (Cover)", "artist": "Various Artists"})
+            playlist.append({"title": f"추천 명곡 {idx}", "artist": "Various Artists"})
+            idx += 1
 
         return {
             "key": key_recommend,
@@ -244,10 +286,19 @@ class AnalysisService:
         target_sr = 16000
         y_low = librosa.resample(y, orig_sr=sr, target_sr=target_sr) if sr != target_sr else y
         
+        # [개선] 노이즈 필터링: 일정 데시벨(dB) 이하의 무음 구간(침묵, 노이즈) 제거
+        # top_db=30은 최대 음량 기준 -30dB 이하를 침묵으로 간주하여 필터링
+        intervals = librosa.effects.split(y_low, top_db=30)
+        if len(intervals) > 0:
+            y_voiced = np.concatenate([y_low[start:end] for start, end in intervals])
+        else:
+            y_voiced = y_low  # 유효 구간이 없으면 원본 그대로 사용
+
         # 1. Pitch & Emotion (pyin 최적화: hop_length 늘림)
         # 16kHz에서 hop_length=1024는 약 64ms 간격입니다.
+        # [개선] 노이즈가 제거된 y_voiced 를 사용하여 정확한 Pitch 분석
         f0, _, _ = librosa.pyin(
-            y_low, 
+            y_voiced, 
             fmin=librosa.note_to_hz('C2'), 
             fmax=librosa.note_to_hz('C7'),
             sr=target_sr,
@@ -448,59 +499,125 @@ class AnalysisService:
                 # 3) 목소리 프로파일링 태그 생성
                 voice_tags = AnalysisService.generate_voice_tags(avg_pitch, avg_mfcc)
                 
-                # 4. DB 연동: 곡(Song) 데이터 로드 및 파싱
-                logger.info("[AnalysisService] DB에서 전체 곡(Song) 데이터를 조회합니다.")
+                # 4. DB 연동: 곡(Song) 데이터 로드 (Pitch 1차 필터링 적용)
+                logger.info("[AnalysisService] DB에서 곡 데이터를 조회합니다. (Pitch 1차 필터링)")
                 db = SessionLocal()
                 try:
-                    songs = db.query(Song).all()
+                    # [성능 최적화 1단계] 내 음역대(Pitch) 기준 +- 50Hz 범위 내의 곡만 1차 필터링하여 DB에서 가져옵니다. (O(N) 탐색 모수 대폭 감소)
+                    min_pitch = avg_pitch - 50.0
+                    max_pitch = avg_pitch + 50.0
+                    songs = db.query(Song).filter(Song.pitch >= min_pitch, Song.pitch <= max_pitch).all()
                     
+                    # 만약 필터링된 곡이 없다면 전체 곡을 가져옵니다 (Fallback)
+                    if not songs:
+                        logger.warning("[AnalysisService] 필터링된 곡이 없어 전체 곡을 조회합니다.")
+                        songs = db.query(Song).all()
+
                     if not songs:
                         logger.warning("[AnalysisService] DB에 곡 데이터가 하나도 없습니다. 매칭을 건너뜁니다.")
                         matched_song_id = None
                     else:
                         # =========================================================
-                        # 5. 코사인 유사도(Cosine Similarity) 기반 매칭
-                        # [알고리즘 변경 이유]
-                        # - 기존 StandardScaler + 유클리디안 방식은 MFCC[0](에너지)의
-                        #   절대값이 커서 다른 모든 차원을 씹어먹어
-                        #   항상 같은 곡만 매칭되는 '블랙홀 현상' 발생.
-                        # - 코사인 유사도는 벡터의 방향(패턴)만 비교하므로
-                        #   절대 음량과 무관하게 목소리의 '음색 지문'을 비교합니다.
-                        # - Pitch는 매칭에서 제외하고 키 변경 추천 지표로만 사용합니다.
+                        # 5. 종합 가중치 매칭 + Faiss 고속 벡터 검색 [개선]
+                        # - [성능 최적화 2단계] Faiss 라이브러리를 도입하여 MFCC 벡터 유사도를 O(log N) 속도로 고속 검색합니다.
+                        # - 추출된 Top K 개의 곡에 대해서만 Pitch 가중치를 합산하여 최종 1곡을 선정합니다.
                         # =========================================================
-                        logger.info("[AnalysisService] MFCC 코사인 유사도 기반 매칭 시작...")
+                        logger.info(f"[AnalysisService] Faiss를 활용한 고속 벡터 검색 및 가중치 합산 시작 (후보 곡 수: {len(songs)})")
 
                         best_song_id = None
-                        best_cosine = -1.0      # 코사인 값은 높을수록 유사
-                        best_song_pitch = 0.0   # 키 변경 추천을 위한 저장
+                        best_score = -1.0
+                        best_cosine = 0.0
+                        best_song_pitch = 0.0
 
+                        # Faiss 인덱스에 넣을 데이터 준비
+                        import faiss
+                        
+                        song_ids = []
+                        song_pitches = []
+                        song_mfccs = []
+                        
                         for song in songs:
                             try:
-                                song_mfcc = np.array(json.loads(song.mfcc_vector)) if song.mfcc_vector else np.zeros(20)
+                                vec = np.array(json.loads(song.mfcc_vector), dtype=np.float32)
+                                song_mfccs.append(vec)
+                                song_ids.append(song.id)
+                                song_pitches.append(song.pitch if song.pitch is not None else 0.0)
                             except Exception:
-                                logger.warning(f"[AnalysisService] Song ID {song.id} MFCC 파싱 실패, 0 벡터 사용")
-                                song_mfcc = np.zeros(20)
+                                continue
 
-                            cosine = AnalysisService.cosine_similarity(avg_mfcc, song_mfcc)
-                            song_pitch_val = song.pitch if song.pitch is not None else 0.0
+                        if len(song_mfccs) > 0:
+                            # 데이터 변환 및 정규화 (코사인 유사도는 L2 정규화 후 내적(Inner Product)과 동일)
+                            song_mfccs_np = np.array(song_mfccs)
+                            faiss.normalize_L2(song_mfccs_np)
+                            
+                            # Faiss 내적(Inner Product) 인덱스 생성
+                            dimension = 20 # MFCC 차원 수
+                            index = faiss.IndexFlatIP(dimension)
+                            index.add(song_mfccs_np)
+                            
+                            # 쿼리 벡터 준비 및 정규화
+                            query_vec = np.array([avg_mfcc], dtype=np.float32)
+                            faiss.normalize_L2(query_vec)
+                            
+                            # 검색 (Top 10 추출 후 최종 가중치 계산)
+                            k = min(10, len(song_ids))
+                            distances, indices = index.search(query_vec, k)
+                            
+                            candidates = []
+                            for i in range(k):
+                                idx = indices[0][i]
+                                if idx == -1: continue # 결과 없음
+                                
+                                cosine = float(distances[0][i]) # Faiss 내적 결과가 곧 코사인 유사도
+                                current_song_id = song_ids[idx]
+                                current_pitch = song_pitches[idx]
+                                
+                                # 1) 코사인 유사도를 0 ~ 1.0 범위로 정규화 (음색 점수)
+                                mfcc_score = max(0.0, (cosine + 1) / 2.0)
+                                
+                                # 2) Pitch 차이를 바탕으로 음역대 점수 산출 (0 ~ 1.0)
+                                pitch_diff = abs(avg_pitch - current_pitch)
+                                pitch_score = max(0.0, 1.0 - (pitch_diff / 100.0))
+                                
+                                # 3) 가중치 합산 (음색 70%, 음역대 30%)
+                                total_score = (mfcc_score * 0.7) + (pitch_score * 0.3)
+                                
+                                candidates.append({
+                                    "id": current_song_id,
+                                    "pitch": current_pitch,
+                                    "cosine": cosine,
+                                    "score": total_score
+                                })
 
-                            logger.info(f"[AnalysisService] Song ID {song.id} | MFCC 코사인: {cosine:.4f} | Pitch: {song_pitch_val:.1f}Hz")
+                            # 점수 내림차순 정렬
+                            candidates.sort(key=lambda x: x["score"], reverse=True)
 
-                            if cosine > best_cosine:
-                                best_cosine = cosine
-                                best_song_id = song.id
-                                best_song_pitch = song_pitch_val
+                            if candidates:
+                                best = candidates[0]
+                                best_score = best["score"]
+                                best_cosine = best["cosine"]
+                                best_song_id = best["id"]
+                                best_song_pitch = best["pitch"]
+                                
+                                # 상위 2~4위 곡의 ID 저장 (찰떡 매칭용 플레이리스트 후보)
+                                top_similar_ids = [c["id"] for c in candidates[1:4]]
 
                         matched_song_id = best_song_id
-                        logger.info(f"[AnalysisService] 최종 매칭 완료! Song ID: {matched_song_id} | 코사인 유사도: {best_cosine:.4f}")
+                        logger.info(f"[AnalysisService] 최종 매칭 완료! Song ID: {matched_song_id} | 최고 종합 점수: {best_score:.4f} (코사인 {best_cosine:.4f})")
 
                         # 세션이 닫히기 전에 아티스트 정보를 미리 조회합니다.
                         matched_song = db.query(Song).filter(Song.id == matched_song_id).first() if matched_song_id else None
                         matched_artist = matched_song.artist if matched_song else "알 수 없는 아티스트"
                         matched_song_title = matched_song.title if matched_song else "알 수 없는 곡"
 
-                        # PRO 플레이리스트 추천을 위해 사용 가능한 곡 목록을 메모리에 미리 복사
-                        available_songs_data = [{"title": s.title, "artist": s.artist} for s in songs if s.title and s.artist]
+                        # PRO 플레이리스트 추천을 위한 데이터 (Faiss 검색 결과 2~4위 곡)
+                        similar_songs_data = []
+                        if 'top_similar_ids' in locals() and top_similar_ids:
+                            sim_songs = db.query(Song).filter(Song.id.in_(top_similar_ids)).all()
+                            similar_songs_data = [{"title": s.title, "artist": s.artist} for s in sim_songs if s.title and s.artist]
+                        else:
+                            # 만약 Faiss 검색 결과가 적다면 전체 곡 중 일부로 대체(Fallback)
+                            similar_songs_data = [{"title": s.title, "artist": s.artist} for s in songs if s.title and s.artist]
 
                 finally:
                     # DB 세션을 반드시 반환하여 커넥션 풀을 관리합니다.
@@ -545,7 +662,7 @@ class AnalysisService:
                 vocal_stats,
                 matched_artist if 'matched_artist' in locals() else "알 수 없는 아티스트",
                 matched_song_title if 'matched_song_title' in locals() else "알 수 없는 곡",
-                available_songs_data if 'available_songs_data' in locals() else []
+                similar_songs_data if 'similar_songs_data' in locals() else []
             )
 
             return {

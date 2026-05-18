@@ -90,11 +90,22 @@ public class AnalysisService {
             // LPUSH: 리스트 왼쪽에 삽입. 파이썬은 BRPOP(오른쪽에서 꺼냄)으로 FIFO 순서 유지
             stringRedisTemplate.opsForList().leftPush("voice_analysis_queue", jsonPayload);
             log.info("[AnalysisService] DB 커밋 완료 후 Redis 발행 성공. taskUuid: {}", taskUuid);
-        } catch (JsonProcessingException e) {
-            // 직렬화 실패: 트랜잭션은 이미 커밋되었으므로 롤백 불가.
-            // 로그를 남기고 모니터링 시스템에 알림 전송이 필요한 지점입니다.
-            log.error("[AnalysisService] Redis 발행 실패! DB에는 저장되었으나 파이썬 워커로 전달되지 않았습니다. taskUuid: {}", taskUuid, e);
+        } catch (Exception e) {
+            // [개선] 직렬화 예외나 Redis 연결 에러 발생 시, Task 상태를 즉시 FAILED로 변경
+            log.error("[AnalysisService] Redis 발행 실패! 파이썬 워커로 전달되지 않았습니다. taskUuid: {}", taskUuid, e);
+            
+            // 새 트랜잭션을 열어 상태 업데이트
+            handlePublishFailure(taskUuid);
         }
+    }
+
+    @Transactional(propagation = org.springframework.transaction.annotation.Propagation.REQUIRES_NEW)
+    public void handlePublishFailure(String taskUuid) {
+        analysisTaskRepository.findByTaskUuid(taskUuid).ifPresent(task -> {
+            task.failTask();
+            analysisTaskRepository.save(task);
+            log.info("[AnalysisService] Task 상태를 FAILED로 업데이트 완료. taskUuid: {}", taskUuid);
+        });
     }
 
     /**
@@ -117,12 +128,27 @@ public class AnalysisService {
     }
 
     /**
-     * 유저의 최근 분석 이력 5개를 조회합니다.
+     * 유저의 전체 분석 이력을 조회합니다.
      */
     public java.util.List<TaskStatusResponse> getAnalysisHistory(Long userId) {
-        return analysisTaskRepository.findTop5ByUserIdOrderByCreatedAtDesc(userId)
+        return analysisTaskRepository.findAllByUserIdOrderByCreatedAtDesc(userId)
                 .stream()
                 .map(TaskStatusResponse::from)
                 .collect(java.util.stream.Collectors.toList());
+    }
+
+    /**
+     * 특정 분석 이력을 삭제합니다. (본인 것만 삭제 가능)
+     */
+    @Transactional
+    public void deleteAnalysisTask(Long userId, String taskUuid) {
+        AnalysisTask task = analysisTaskRepository.findByTaskUuid(taskUuid)
+                .orElseThrow(() -> new IllegalArgumentException("존재하지 않거나 유효하지 않은 작업 ID입니다."));
+        
+        if (!task.getUser().getId().equals(userId)) {
+            throw new IllegalArgumentException("해당 분석 이력을 삭제할 권한이 없습니다.");
+        }
+        
+        analysisTaskRepository.delete(task);
     }
 }

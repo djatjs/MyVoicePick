@@ -98,4 +98,20 @@ public class AnalysisController {
         
         return ResponseEntity.ok(history);
     }
+
+    /**
+     * [엔드포인트 5] 나의 특정 분석 이력 삭제
+     */
+    @DeleteMapping("/{taskId}")
+    public ResponseEntity<Void> deleteAnalysisHistory(@PathVariable("taskId") String taskId) {
+        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+        String userEmail = (String) authentication.getPrincipal();
+
+        User user = userRepository.findByEmail(userEmail)
+                .orElseThrow(() -> new RuntimeException("User not found: " + userEmail));
+
+        analysisService.deleteAnalysisTask(user.getId(), taskId);
+        
+        return ResponseEntity.noContent().build();
+    }
 }

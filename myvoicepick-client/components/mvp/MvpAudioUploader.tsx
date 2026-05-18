@@ -9,6 +9,7 @@ import {
 } from 'lucide-react';
 import { MvpButton } from './MvpButton';
 
+import { TossPaymentModal } from './TossPaymentModal';
 type UploadState = 'idle' | 'dragging' | 'uploading' | 'success' | 'error';
 
 interface VocalStats {
@@ -108,7 +109,7 @@ interface ProFeatures {
 /**
  * [업데이트] PRO 플랜 전용 보컬 성장 솔루션 컴포넌트 (동적 데이터 바인딩)
  */
-function VocalGrowthCenter({ isPro, proFeatures }: { isPro: boolean, proFeatures?: ProFeatures }) {
+function VocalGrowthCenter({ isPro, proFeatures, onUpgradeClick }: { isPro: boolean, proFeatures?: ProFeatures, onUpgradeClick: () => void }) {
   // 백엔드 데이터가 없을 경우를 대비한 폴백 데이터
   const fallbackData = {
     key: "분석 중...",
@@ -123,9 +124,9 @@ function VocalGrowthCenter({ isPro, proFeatures }: { isPro: boolean, proFeatures
   const data = proFeatures || fallbackData;
 
   return (
-    <div className="relative mt-12 rounded-[var(--mvp-radius-lg)] bg-[#050505] border border-white/5 overflow-hidden">
+    <div className="mt-12 rounded-[var(--mvp-radius-lg)] bg-[#050505] border border-white/5 overflow-hidden flex flex-col">
       {/* Header */}
-      <div className="p-8 pb-6 border-b border-white/5 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+      <div className="relative z-30 p-8 pb-6 border-b border-white/5 flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-[#050505]">
         <div>
           <h3 className="text-xl font-black text-white flex items-center gap-2 mb-1 tracking-tight">
             <Target className="w-5 h-5 text-indigo-400" />
@@ -144,7 +145,9 @@ function VocalGrowthCenter({ isPro, proFeatures }: { isPro: boolean, proFeatures
         )}
       </div>
 
-      {/* Content Area */}
+      {/* Content & Paywall Container */}
+      <div className="relative flex-1">
+        {/* Content Area */}
       <div className={`p-8 grid md:grid-cols-2 gap-8 transition-all duration-1000 ${!isPro ? 'blur-xl opacity-20 select-none pointer-events-none' : ''}`}>
         
         {/* Left: Actionable Feedback */}
@@ -192,14 +195,6 @@ function VocalGrowthCenter({ isPro, proFeatures }: { isPro: boolean, proFeatures
                   </div>
                 </div>
                 <div className="flex items-center gap-2">
-                  <button 
-                    onClick={() => alert("STUDIO 플랜 기능입니다: 실제 서비스에서는 이 곡에 사용자의 목소리를 합성한 15초 AI 커버 MP3를 재생합니다.")}
-                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-gradient-to-r from-fuchsia-600/20 to-purple-600/20 text-fuchsia-300 hover:from-fuchsia-500 hover:to-purple-500 hover:text-white transition-all text-xs font-bold border border-fuchsia-500/30"
-                    title="AI로 내 목소리 커버 생성하기 (STUDIO 전용)"
-                  >
-                    <Wand2 className="w-3.5 h-3.5" />
-                    AI 커버
-                  </button>
                   <PlayCircle 
                     className="w-8 h-8 text-white/20 hover:text-white transition-colors cursor-pointer" 
                     onClick={() => window.open(`https://www.youtube.com/results?search_query=${encodeURIComponent(song.artist + ' ' + song.title)}`, '_blank')}
@@ -213,36 +208,37 @@ function VocalGrowthCenter({ isPro, proFeatures }: { isPro: boolean, proFeatures
 
       {/* Pro Paywall (Value-Driven) */}
       {!isPro && (
-        <div className="absolute inset-0 z-20 flex flex-col items-center justify-center bg-black/40 backdrop-blur-md">
-          <div className="flex flex-col items-center w-full max-w-lg text-center p-8 bg-[#0a0a0a] rounded-3xl border border-white/10 shadow-2xl">
-             <div className="w-16 h-16 bg-gradient-to-br from-indigo-500 via-purple-500 to-fuchsia-500 rounded-2xl flex items-center justify-center mb-6 shadow-[0_0_40px_rgba(168,85,247,0.4)] rotate-3">
-               <Crown className="w-8 h-8 text-white -rotate-3" />
+        <div className="absolute inset-0 z-20 flex flex-col items-center justify-center bg-black/40 backdrop-blur-md rounded-b-[var(--mvp-radius-lg)] p-4 sm:p-8">
+          <div className="flex flex-col items-center w-full max-w-[380px] text-center p-6 sm:p-8 bg-[#0a0a0a]/90 backdrop-blur-2xl rounded-3xl border border-white/10 shadow-2xl transition-all">
+             <div className="w-12 h-12 sm:w-14 sm:h-14 bg-gradient-to-br from-indigo-500 via-purple-500 to-fuchsia-500 rounded-2xl flex items-center justify-center mb-4 sm:mb-6 shadow-[0_0_30px_rgba(168,85,247,0.3)] rotate-3">
+               <Crown className="w-6 h-6 sm:w-7 sm:h-7 text-white -rotate-3" />
              </div>
-             <h4 className="text-3xl font-black text-white mb-2 tracking-tight">당신의 보컬 잠재력을 깨우세요</h4>
-             <p className="text-sm text-white/60 mb-8 font-medium">단순한 재미를 넘어, 진짜 노래를 잘 부르고 싶다면.</p>
+             <h4 className="text-2xl sm:text-3xl font-black text-white mb-2 tracking-tight">잠재력을 깨우세요</h4>
+             <p className="text-xs sm:text-sm text-white/60 mb-6 font-medium">단순한 분석을 넘어, 진짜 성장 솔루션을 경험하세요.</p>
              
-             <div className="w-full space-y-3 mb-8 text-left">
+             <div className="w-full space-y-2 sm:space-y-3 mb-6 sm:mb-8 text-left">
                <div className="flex items-center gap-3 p-3 bg-white/5 rounded-xl border border-white/5">
-                 <CheckCircle2 className="w-5 h-5 text-emerald-400 shrink-0" />
-                 <span className="text-sm font-bold text-white/90">내 성대에 가장 편안한 맞춤 Key 제공</span>
+                 <CheckCircle2 className="w-4 h-4 sm:w-5 sm:h-5 text-emerald-400 shrink-0" />
+                 <span className="text-xs sm:text-sm font-bold text-white/90">내 성대에 편안한 맞춤 Key</span>
                </div>
                <div className="flex items-center gap-3 p-3 bg-white/5 rounded-xl border border-white/5">
-                 <CheckCircle2 className="w-5 h-5 text-emerald-400 shrink-0" />
-                 <span className="text-sm font-bold text-white/90">약점을 보완하는 1:1 발성 훈련 가이드</span>
+                 <CheckCircle2 className="w-4 h-4 sm:w-5 sm:h-5 text-emerald-400 shrink-0" />
+                 <span className="text-xs sm:text-sm font-bold text-white/90">약점을 보완하는 1:1 발성 훈련</span>
                </div>
                <div className="flex items-center gap-3 p-3 bg-white/5 rounded-xl border border-white/5">
-                 <CheckCircle2 className="w-5 h-5 text-emerald-400 shrink-0" />
-                 <span className="text-sm font-bold text-white/90">내 목소리에 딱 맞는 찰떡 선곡 리스트</span>
+                 <CheckCircle2 className="w-4 h-4 sm:w-5 sm:h-5 text-emerald-400 shrink-0" />
+                 <span className="text-xs sm:text-sm font-bold text-white/90">찰떡 선곡 3곡 플레이리스트</span>
                </div>
              </div>
 
-             <MvpButton variant="primary" className="w-full !py-4 !rounded-xl bg-white text-black hover:bg-gray-200 transition-all shadow-[0_0_20px_rgba(255,255,255,0.2)] text-base">
+             <MvpButton variant="primary" className="w-full py-3 sm:!py-4 !rounded-xl bg-white text-black hover:bg-gray-200 transition-all shadow-[0_0_20px_rgba(255,255,255,0.2)] text-sm sm:text-base" onClick={onUpgradeClick}>
                지금 바로 솔루션 확인하기
              </MvpButton>
-             <p className="text-[10px] text-white/30 mt-4 uppercase tracking-widest font-bold">Cancel Anytime</p>
+             <p className="text-[9px] sm:text-[10px] text-white/30 mt-4 uppercase tracking-widest font-bold">Cancel Anytime</p>
           </div>
         </div>
       )}
+      </div>
     </div>
   );
 }
@@ -253,6 +249,17 @@ export default function MvpAudioUploader() {
   const [errorMessage, setErrorMessage] = useState<string>('');
   const [matchResult, setMatchResult] = useState<MatchResult | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const [isModalOpen, setIsModalOpen] = useState(false);
+
+  const handlePaymentClick = () => {
+    const token = localStorage.getItem('accessToken');
+    if (!token) {
+      alert('로그인이 필요한 서비스입니다. 로그인 페이지로 이동합니다.');
+      window.location.href = '/login';
+      return;
+    }
+    setIsModalOpen(true);
+  };
 
   // URL에 taskId가 있을 경우 자동으로 해당 결과 로드
   useEffect(() => {
@@ -295,8 +302,14 @@ export default function MvpAudioUploader() {
           proFeatures: data.proFeatures || undefined,
         });
         setUploadState('success');
+      } else if (data.status === 'PENDING' || data.status === 'PROCESSING') {
+        // 다른 페이지로 갔다가 다시 돌아왔는데 아직 분석 중인 경우 폴링 재개
+        setMatchResult({ taskId: taskId } as any);
+        setUploadState('processing');
+        setTimeout(() => pollStatus(taskId), 3000);
       } else if (data.status === 'FAILED') {
-        throw new Error('분석에 실패했습니다.');
+        setErrorMessage('분석에 실패했습니다.');
+        setUploadState('error');
       } else {
         setTimeout(() => pollStatus(taskId), 3000);
       }
@@ -476,6 +489,7 @@ export default function MvpAudioUploader() {
               <VocalGrowthCenter 
                 isPro={matchResult.userPlan === 'PRO' || matchResult.userPlan === 'STUDIO'} 
                 proFeatures={matchResult.proFeatures}
+                onUpgradeClick={handlePaymentClick}
               />
             </div>
           ) : (
@@ -549,6 +563,11 @@ export default function MvpAudioUploader() {
           )}
         </div>
       </div>
+      <TossPaymentModal 
+        isOpen={isModalOpen} 
+        onClose={() => setIsModalOpen(false)} 
+        plan="PRO" 
+      />
     </div>
   );
 }
