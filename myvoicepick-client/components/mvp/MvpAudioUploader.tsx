@@ -10,7 +10,7 @@ import {
 import { MvpButton } from './MvpButton';
 
 import { TossPaymentModal } from './TossPaymentModal';
-type UploadState = 'idle' | 'dragging' | 'uploading' | 'success' | 'error';
+type UploadState = 'idle' | 'dragging' | 'uploading' | 'processing' | 'success' | 'error';
 
 interface VocalStats {
   warmth: number;
