@@ -14,9 +14,11 @@ import java.io.IOException;
 public class CustomOAuth2SuccessHandler implements AuthenticationSuccessHandler {
 
     private final JwtUtil jwtUtil;
+    private final String frontendUrl;
 
-    public CustomOAuth2SuccessHandler(JwtUtil jwtUtil) {
+    public CustomOAuth2SuccessHandler(JwtUtil jwtUtil, @org.springframework.beans.factory.annotation.Value("${app.frontend-url}") String frontendUrl) {
         this.jwtUtil = jwtUtil;
+        this.frontendUrl = frontendUrl;
     }
 
     @Override
@@ -34,7 +36,7 @@ public class CustomOAuth2SuccessHandler implements AuthenticationSuccessHandler 
         String token = jwtUtil.generateToken(email);
         
         // 프론트엔드의 특정 엔드포인트(예: 로그인 성공 처리 페이지)로 리다이렉트 하면서 JWT 전달
-        String targetUrl = "http://localhost:3000/login/success?token=" + token;
+        String targetUrl = frontendUrl + "/login/success?token=" + token;
         
         response.sendRedirect(targetUrl);
     }

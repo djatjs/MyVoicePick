@@ -34,6 +34,9 @@ public class PaymentController {
         return ResponseEntity.ok(new PaymentResponse(checkoutUrl));
     }
 
+    @org.springframework.beans.factory.annotation.Value("${app.frontend-url}")
+    private String frontendUrl;
+
     /**
      * [MOCK] 결제 성공 처리 엔드포인트
      * 결제창에서 결제 완료 후 이동하게 되는 지점입니다.
@@ -43,7 +46,7 @@ public class PaymentController {
         paymentService.processPaymentSuccess(email, plan);
         
         // 결제 완료 후 프론트엔드의 마이페이지로 리다이렉트
-        return new RedirectView("http://localhost:3000/mypage?payment=success");
+        return new RedirectView(frontendUrl + "/mypage?payment=success");
     }
     @PostMapping("/toss/confirm")
     public ResponseEntity<?> confirmToss(@RequestBody TossConfirmRequest request,

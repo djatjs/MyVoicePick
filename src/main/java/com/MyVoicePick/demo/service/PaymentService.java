@@ -19,6 +19,9 @@ public class PaymentService {
     @Value("${toss.payment.secret-key}")
     private String tossSecretKey;
 
+    @Value("${app.frontend-url}")
+    private String frontendUrl;
+
     /**
      * 결제 체크아웃 세션을 생성합니다.
      * 실제 운영 환경에서는 Stripe Java SDK 등을 사용하여 실제 결제창 URL을 생성해야 합니다.
@@ -32,7 +35,7 @@ public class PaymentService {
                 .orElseThrow(() -> new RuntimeException("User not found: " + userEmail));
 
         // 프론트엔드의 토스페이먼츠 결제창 페이지로 리다이렉트
-        return "http://localhost:3000/checkout?plan=" + plan;
+        return frontendUrl + "/checkout?plan=" + plan;
     }
 
     /**
