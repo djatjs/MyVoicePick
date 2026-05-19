@@ -278,11 +278,10 @@ export default function MvpAudioUploader() {
 
     try {
       const token = localStorage.getItem('accessToken');
-      const res = await fetch(`/api/v1/analyze/${taskId}/status`, {
-        headers: {
-          'Authorization': `Bearer ${token}`
-        }
-      });
+      const headers: HeadersInit = {};
+      if (token) headers['Authorization'] = `Bearer ${token}`;
+
+      const res = await fetch(`/api/v1/analyze/${taskId}/status`, { headers });
       if (!res.ok) throw new Error('상태 조회 중 서버 오류가 발생했습니다.');
       
       const data = await res.json();
@@ -326,12 +325,13 @@ export default function MvpAudioUploader() {
       const form = new FormData();
       form.append('file', file);
       
+      const headers: HeadersInit = {};
+      if (token) headers['Authorization'] = `Bearer ${token}`;
+
       const res = await fetch('/api/v1/analyze', { 
         method: 'POST', 
         body: form,
-        headers: {
-          'Authorization': `Bearer ${token}`
-        }
+        headers
       });
       
       if (!res.ok) {

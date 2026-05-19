@@ -81,7 +81,11 @@ export default function AudioUploader() {
 
   const pollStatus = async (taskId: string) => {
     try {
-      const res = await fetch(`/api/v1/analyze/${taskId}/status`);
+      const token = localStorage.getItem('accessToken');
+      const headers: HeadersInit = {};
+      if (token) headers['Authorization'] = `Bearer ${token}`;
+
+      const res = await fetch(`/api/v1/analyze/${taskId}/status`, { headers });
       if (!res.ok) throw new Error(`상태 조회 실패 (${res.status})`);
       const data = await res.json();
 
@@ -122,7 +126,11 @@ export default function AudioUploader() {
     try {
       const form = new FormData();
       form.append('userId', '1'); form.append('file', file);
-      const res = await fetch('/api/v1/analyze', { method: 'POST', body: form });
+      const token = localStorage.getItem('accessToken');
+      const headers: HeadersInit = {};
+      if (token) headers['Authorization'] = `Bearer ${token}`;
+
+      const res = await fetch('/api/v1/analyze', { method: 'POST', headers, body: form });
       if (!res.ok) throw new Error(`서버 전송 실패 (${res.status})`);
       const { taskId } = await res.json();
       if (!taskId) throw new Error('taskId를 받지 못했습니다.');

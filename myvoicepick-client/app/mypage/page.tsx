@@ -111,10 +111,13 @@ export default function MyPage() {
           headers: { 'Authorization': `Bearer ${token}` }
         });
         if (resLatest.ok) {
-          const data = await resLatest.json();
-          if (data && data.status === 'COMPLETED') {
-            setLatestAnalysis(data);
-            if (data.userPlan) setUserPlan(data.userPlan);
+          const text = await resLatest.text();
+          if (text) {
+            const data = JSON.parse(text);
+            if (data && data.status === 'COMPLETED') {
+              setLatestAnalysis(data);
+              if (data.userPlan) setUserPlan(data.userPlan);
+            }
           }
         }
 
@@ -123,8 +126,11 @@ export default function MyPage() {
           headers: { 'Authorization': `Bearer ${token}` }
         });
         if (resHistory.ok) {
-          const data = await resHistory.json();
-          setHistory(data || []);
+          const text = await resHistory.text();
+          if (text) {
+            const data = JSON.parse(text);
+            setHistory(data || []);
+          }
         }
       } catch (e) {
         console.error('Error fetching mypage data', e);
