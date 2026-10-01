@@ -250,6 +250,7 @@ export default function MvpAudioUploader() {
   const [matchResult, setMatchResult] = useState<MatchResult | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const isBusy = uploadState === 'uploading' || uploadState === 'processing';
 
   const handlePaymentClick = () => {
     const token = localStorage.getItem('accessToken');
@@ -265,6 +266,7 @@ export default function MvpAudioUploader() {
   useEffect(() => {
     const taskId = searchParams.get('taskId');
     if (taskId) {
+      setUploadState('processing');
       pollStatus(taskId);
     }
   }, [searchParams]);
@@ -303,7 +305,6 @@ export default function MvpAudioUploader() {
         setUploadState('success');
       } else if (data.status === 'PENDING' || data.status === 'PROCESSING') {
         // 다른 페이지로 갔다가 다시 돌아왔는데 아직 분석 중인 경우 폴링 재개
-        setMatchResult({ taskId: taskId } as any);
         setUploadState('processing');
         setTimeout(() => pollStatus(taskId), 3000);
       } else if (data.status === 'FAILED') {
@@ -319,6 +320,9 @@ export default function MvpAudioUploader() {
   };
 
   const processFile = async (file: File) => {
+    if (isBusy) return;
+    setErrorMessage('');
+    setMatchResult(null);
     setUploadState('uploading');
     try {
       const token = localStorage.getItem('accessToken');
@@ -342,6 +346,7 @@ export default function MvpAudioUploader() {
       const { taskId } = await res.json();
       if (!taskId) throw new Error('분석 작업 ID를 받지 못했습니다.');
       
+      setUploadState('processing');
       pollStatus(taskId);
     } catch (err: any) {
       setUploadState('error');
@@ -499,6 +504,7 @@ export default function MvpAudioUploader() {
                 ref={fileInputRef} 
                 className="hidden" 
                 accept="audio/mpeg,audio/wav,audio/x-m4a,audio/mp4,audio/aac"
+                disabled={isBusy}
                 onChange={handleFileChange} 
               />
               <div
@@ -506,28 +512,35 @@ export default function MvpAudioUploader() {
                   w-full max-w-3xl min-h-[450px] rounded-[var(--mvp-radius-lg)] border border-dashed
                   flex flex-col items-center justify-center p-12 transition-all duration-700 cursor-pointer group
                   ${uploadState === 'dragging' ? 'border-indigo-500 bg-indigo-500/10 scale-[1.02]'
-                    : uploadState === 'uploading' ? 'border-white/10 bg-white/[0.02] cursor-default'
+                    : isBusy ? 'border-white/10 bg-white/[0.02] !cursor-default'
                       : uploadState === 'error' ? 'border-red-500/30 bg-red-500/5'
                         : 'border-white/10 bg-[#050505] hover:border-white/30 hover:bg-white/[0.02] shadow-2xl'}
                 `}
-                onDragOver={(e) => { e.preventDefault(); setUploadState('dragging'); }}
-                onDragLeave={() => setUploadState('idle')}
+                onDragOver={(e) => { e.preventDefault(); if (!isBusy) setUploadState('dragging'); }}
+                onDragLeave={() => { if (uploadState === 'dragging') setUploadState('idle'); }}
                 onDrop={(e) => {
                    e.preventDefault();
+                   if (isBusy) return;
                    const file = e.dataTransfer.files[0];
                    if (file) processFile(file);
                 }}
                 onClick={() => { if (uploadState === 'idle' || uploadState === 'error') fileInputRef.current?.click(); }}
               >
-                {uploadState === 'uploading' ? (
-                  <div className="flex flex-col items-center gap-10">
+                {isBusy ? (
+                  <div role="status" aria-live="polite" className="flex flex-col items-center gap-10">
                     <div className="relative">
                        <div className="absolute inset-0 bg-indigo-500/20 blur-3xl rounded-full animate-pulse" />
                        <Loader2 className="w-20 h-20 animate-spin text-indigo-500 relative z-10" />
                     </div>
                     <div className="text-center space-y-3">
-                       <h3 className="text-3xl font-black tracking-tight text-white">Extracting DNA...</h3>
-                       <p className="text-lg text-[var(--mvp-text-muted)] font-medium">당신의 목소리에서 128개의 음악적 지점을 분석하고 있습니다.</p>
+                       <h3 className="text-3xl font-black tracking-tight text-white">
+                         {uploadState === 'uploading' ? '음성 파일 업로드 중...' : '음성 분석 진행 중...'}
+                       </h3>
+                       <p className="text-lg text-[var(--mvp-text-muted)] font-medium">
+                         {uploadState === 'uploading'
+                           ? '파일을 서버로 전송하고 있습니다. 잠시만 기다려 주세요.'
+                           : '분석을 준비하거나 목소리의 특징을 추출하고 있습니다. 완료되면 결과가 자동으로 표시됩니다.'}
+                       </p>
                     </div>
                   </div>
                 ) : uploadState === 'error' ? (
@@ -571,4 +584,3 @@ export default function MvpAudioUploader() {
     </div>
   );
 }
-
