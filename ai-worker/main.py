@@ -1,5 +1,6 @@
 import os
 import json
+import time
 import logging
 import redis
 from dotenv import load_dotenv
@@ -138,18 +139,15 @@ def main():
         return
 
     logger.info(f"'{REDIS_QUEUE_NAME}' 큐를 구독하며 대기 중입니다...")
-    
-    # 무한 루프를 돌며 큐에서 작업을 대기(Polling)합니다.
+    # 무한 루프를 돌며 큐에서 작업 대기(Polling)
     while True:
         try:
-            # brpop: 리스트의 끝(오른쪽)에서 데이터를 꺼냅니다. 데이터가 없으면 들어올 때까지 대기합니다.
+            # brpop: 리스트의 끝(오른쪽)에서 데이터를 꺼냄. 데이터가 없으면 들어올 때까지 대기
             # 반환값은 튜플 형태: (큐_이름, 데이터)
             result = redis_client.brpop(REDIS_QUEUE_NAME, timeout=0)
-            
             if result:
                 queue_name, message = result
                 logger.info(f"메시지 수신됨: {message}")
-                
                 try:
                     # JSON 문자열을 파이썬 딕셔너리로 변환
                     message_data = json.loads(message)
@@ -160,7 +158,6 @@ def main():
                     
         except redis.ConnectionError:
             logger.error("Redis 서버와의 연결이 끊어졌습니다. 5초 후 재시도합니다.")
-            import time
             time.sleep(5)
         except KeyboardInterrupt:
             # Ctrl+C 로 중단할 때 우아하게 종료
@@ -168,7 +165,6 @@ def main():
             break
         except Exception as e:
             logger.error(f"예상치 못한 에러 발생: {e}")
-            import time
             time.sleep(1)
 
 if __name__ == "__main__":
