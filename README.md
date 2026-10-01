@@ -6,6 +6,12 @@
 - **핵심 과제:** 보컬 분리·음성 분석처럼 무거운 작업을 웹 요청에서 떼어내 비동기로 처리하기
 - **구성:** Next.js 클라이언트 · Spring Boot API 서버 · Python 분석 워커
 
+## 배포 사이트
+<img width="1511" height="724" alt="image" src="https://github.com/user-attachments/assets/24ee20ed-d1fe-49ff-af2a-b0398444cf73" />
+https://my-voice-pick.vercel.app/
+
+
+
 ## 시스템 구조
 
 ```mermaid
