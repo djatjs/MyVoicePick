@@ -24,6 +24,9 @@ public class SecurityConfig {
     private final JwtAuthenticationFilter jwtAuthenticationFilter;
     private final CustomOAuth2UserService customOAuth2UserService;
 
+    @org.springframework.beans.factory.annotation.Autowired
+    private com.MyVoicePick.demo.security.ApiAuthenticationEntryPoint apiAuthenticationEntryPoint;
+
     public SecurityConfig(CustomOAuth2SuccessHandler customOAuth2SuccessHandler, 
                           JwtAuthenticationFilter jwtAuthenticationFilter,
                           CustomOAuth2UserService customOAuth2UserService) {
@@ -45,10 +48,13 @@ public class SecurityConfig {
             
             .authorizeHttpRequests(auth -> auth
                 .requestMatchers("/", "/login/**", "/oauth2/**").permitAll()
-                .requestMatchers("/api/v1/analyze/**", "/api/v1/payment/**").authenticated() // 분석 및 결제 API는 인증 필수
+                .requestMatchers("/api/**").authenticated() // API는 모두 인증 필수
                 .anyRequest().permitAll()
             )
             
+            // 인증 없이 API를 호출하면 로그인 페이지로 보내지 않고 401을 돌려준다
+            .exceptionHandling(e -> e.authenticationEntryPoint(apiAuthenticationEntryPoint))
+
             // 3. OAuth2 로그인 및 커스텀 Success Handler 등록
             .oauth2Login(oauth2 -> oauth2
                 .userInfoEndpoint(userInfo -> userInfo.userService(customOAuth2UserService))

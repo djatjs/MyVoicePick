@@ -373,7 +373,7 @@ class AnalysisService:
         }
 
     @staticmethod
-    def process_audio(task_uuid: str, s3_file_url: str) -> dict:
+    def process_audio(task_uuid: str, s3_file_url: str = None, s3_key: str = None) -> dict:
         """
         오디오 파일을 분석하고 매칭 결과와 목소리 태그를 반환합니다.
 
@@ -387,7 +387,8 @@ class AnalysisService:
         Raises:
             Exception: 분석 중 오류가 발생한 경우
         """
-        logger.info(f"[AnalysisService] '{task_uuid}' 분석 시작. 파일 URL: {s3_file_url}")
+        # Presigned URL에는 서명이 들어 있으므로 로그에 남기지 않는다
+        logger.info(f"[AnalysisService] '{task_uuid}' 분석 시작. S3 키: {s3_key or '(Presigned URL 사용)'}")
         
         # 임시 디렉토리 생성
         temp_dir = os.path.join(os.path.dirname(__file__), "temp")
@@ -403,8 +404,15 @@ class AnalysisService:
             local_file_path = os.path.join(temp_dir, f"{task_uuid}_input.mp3")
             
             try:
-                import urllib.request
-                urllib.request.urlretrieve(s3_file_url, local_file_path)
+                bucket = os.getenv("AWS_S3_BUCKET")
+                if s3_key and bucket:
+                    # 워커의 자격 증명으로 직접 내려받는다. 대기열에서 오래 기다려도 만료되지 않는다.
+                    s3_client.download_file(bucket, s3_key, local_file_path)
+                elif s3_file_url:
+                    import urllib.request
+                    urllib.request.urlretrieve(s3_file_url, local_file_path)
+                else:
+                    raise RuntimeError("AWS_S3_BUCKET 환경 변수가 없고 Presigned URL도 전달되지 않았습니다")
                 logger.info(f"[AnalysisService] 파일 다운로드 완료: {local_file_path}")
             except Exception as download_error:
                 logger.error(f"[AnalysisService] S3 파일 다운로드 실패: {download_error}")

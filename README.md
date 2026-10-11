@@ -21,7 +21,7 @@ graph LR
     API -->|작업 저장 PENDING| DB[("MySQL")]
     API -->|커밋 후 LPUSH| Redis[("Redis List<br/>voice_analysis_queue")]
     Redis -->|BRPOP| Worker["Python 워커<br/>Demucs · librosa · FAISS"]
-    Worker -->|Presigned URL로 다운로드| S3
+    Worker -->|S3 키로 다운로드| S3
     Worker -->|상태·결과 저장| DB
     API -->|상태·결과 조회| DB
 ```
@@ -38,7 +38,7 @@ graph LR
 | API 서버 | Java 17, Spring Boot 4.0, Spring Data JPA, Spring Security (OAuth2 로그인, JWT) |
 | 분석 워커 | Python, Demucs(htdemucs), librosa, FAISS, SQLAlchemy |
 | 데이터 | MySQL, Redis (작업 큐) |
-| 인프라·연동 | AWS S3 (Presigned URL), 토스페이먼츠 |
+| 인프라·연동 | AWS S3, 토스페이먼츠 |
 | 클라이언트 | Next.js, TypeScript |
 
 ## 주요 설계와 트러블슈팅
@@ -57,16 +57,23 @@ graph LR
 
 ### 3. 파일 접근 보안
 
-S3 버킷은 공개하지 않습니다. 워커에게는 유효 시간이 짧은 Presigned URL만 전달합니다. 업로드 파일은 `FileValidator`로 확장자(mp3, wav, m4a)와 MIME 타입을 검사합니다.
+S3 버킷은 공개하지 않습니다. 대기열 메시지에는 S3 키만 담고, 워커가 자신의 자격 증명으로 내려받습니다. 처음에는 10분짜리 Presigned URL을 전달했는데, 대기가 길어지면 처리 시점에 만료되는 문제가 있어 바꿨습니다. 업로드 파일은 `FileValidator`로 확장자(mp3, wav, m4a)와 MIME 타입을 검사합니다.
 
-## 알고 있는 한계와 개선 계획
+API는 모두 로그인이 필요하며, 인증 없이 호출하면 401을 돌려줍니다. 분석 상태 조회는 본인 작업만 가능합니다.
 
-| 한계 | 개선 방향 |
-| --- | --- |
-| 커밋 후 Redis 발행이 실패하면 작업이 `PENDING`에 남을 수 있음 | 오래된 `PENDING` 작업을 스케줄러가 다시 발행 |
-| 워커가 `BRPOP`으로 꺼낸 뒤 비정상 종료되면 메시지가 사라짐 | `LMOVE` 처리 중 목록 또는 Redis Streams ACK 사용 |
-| Presigned URL(10분)보다 대기열이 길면 다운로드 시점에 만료됨 | 메시지에는 S3 키만 담고, 워커가 처리 시작 시 접근 |
-| 결제 승인 시 금액을 클라이언트 요청 값으로 사용 | 주문 생성 시 서버가 금액을 확정하고 승인 시 대조 |
+### 4. 끝나지 못한 작업 정리
+
+워커가 대기열에서 작업을 꺼낸 뒤 비정상 종료되면 메시지는 사라지고 상태는 `PROCESSING`에 남습니다. 접수 후 30분이 지나도 끝나지 않은 작업(`PENDING`, `PROCESSING`)은 스케줄러가 `FAILED`로 바꿉니다. 사용자는 무한 대기 대신 실패를 보고 다시 요청할 수 있습니다.
+
+→ `StaleAnalysisTaskScheduler`
+
+## 남아 있는 한계
+
+| 한계 | 지금 감당하는 방법 | 바꿀 조건 |
+| --- | --- | --- |
+| 워커가 처리 중 종료되면 그 작업은 자동으로 다시 처리되지 않음 | 30분 뒤 `FAILED`로 바꿔 사용자가 다시 요청 | 유실이 잦아지면 `LMOVE` 처리 중 목록이나 Redis Streams로 자동 재처리 |
+| 요청이 몰리면 대기 시간이 늘어남 | 워커 수로 조절 | |
+| 결제 승인 시 금액을 클라이언트 요청 값으로 사용 | 토스페이먼츠 테스트 키로만 동작 | 실결제 전에 주문 생성 시 서버가 금액을 확정하고 승인 시 대조 |
 
 ## 로컬 실행
 

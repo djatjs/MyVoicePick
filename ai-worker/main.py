@@ -29,9 +29,11 @@ def process_queue_message(message_data: dict):
     큐에서 꺼낸 메시지를 처리하고 DB 상태를 업데이트합니다.
     """
     task_uuid = message_data.get("taskId")
+    # s3Key가 있으면 그것으로 직접 내려받고, 없으면(이전 버전 API) Presigned URL을 쓴다
+    s3_key = message_data.get("s3Key")
     s3_file_url = message_data.get("s3FileUrl")
     
-    if not task_uuid or not s3_file_url:
+    if not task_uuid or not (s3_key or s3_file_url):
         logger.error(f"잘못된 메시지 포맷입니다. 누락된 필드 확인: {message_data}")
         return
 
@@ -76,7 +78,7 @@ def process_queue_message(message_data: dict):
         db.commit()
         
         # 3. AI 분석 서비스 호출
-        result = AnalysisService.process_audio(task_uuid, s3_file_url)
+        result = AnalysisService.process_audio(task_uuid, s3_file_url, s3_key)
         matched_song_id = result["matched_song_id"]
         voice_tags = result.get("voice_tags", [])
         similarity_score = result.get("similarity_score", 0)

@@ -33,4 +33,7 @@ public interface AnalysisTaskRepository extends JpaRepository<AnalysisTask, Long
      * 유저의 모든 분석 이력을 최신순으로 가져옵니다.
      */
     java.util.List<AnalysisTask> findAllByUserIdOrderByCreatedAtDesc(Long userId);
+
+    java.util.List<AnalysisTask> findByStatusInAndCreatedAtBefore(
+            java.util.Collection<com.MyVoicePick.demo.entity.AnalysisStatus> statuses, java.time.LocalDateTime before);
 }

@@ -61,7 +61,8 @@ public class AnalysisService {
 
         analysisTaskRepository.save(task);
 
-        // [추가] 파이썬 워커가 S3 파일을 다운로드할 수 있도록 임시 보안 URL 생성 (10분 유효)
+        // 워커는 s3Key로 직접 내려받는다. 대기가 길어져도 만료되지 않는다.
+        // presignedUrl(10분 유효)은 s3Key를 모르는 이전 버전 워커를 위해 함께 보낸다.
         final String presignedUrl = s3Uploader.generatePresignedUrl(s3Key);
 
         // 3. [핵심 수정] DB 커밋 완료 후에 Redis 메시지를 발행합니다.
@@ -69,7 +70,7 @@ public class AnalysisService {
             @Override
             public void afterCommit() {
                 // 이 블록은 트랜잭션이 성공적으로 커밋된 이후에만 실행됩니다.
-                publishToRedis(taskUuid, presignedUrl);
+                publishToRedis(taskUuid, s3Key, presignedUrl);
             }
         });
 
@@ -80,9 +81,10 @@ public class AnalysisService {
      * Redis 큐에 분석 작업 메시지를 발행합니다.
      * 반드시 트랜잭션 커밋 이후에 호출되어야 합니다. (afterCommit 콜백에서 호출)
      */
-    private void publishToRedis(String taskUuid, String presignedUrl) {
+    private void publishToRedis(String taskUuid, String s3Key, String presignedUrl) {
         Map<String, String> payload = new HashMap<>();
         payload.put("taskId", taskUuid);
+        payload.put("s3Key", s3Key);
         payload.put("s3FileUrl", presignedUrl);
 
         try {
@@ -111,9 +113,13 @@ public class AnalysisService {
     /**
      * 클라이언트가 주기적으로(Polling) 영수증 번호를 이용해 작업 상태를 확인하는 로직입니다.
      */
-    public TaskStatusResponse getTaskStatus(String taskUuid) {
+    public TaskStatusResponse getTaskStatus(String taskUuid, String userEmail) {
         AnalysisTask task = analysisTaskRepository.findByTaskUuid(taskUuid)
                 .orElseThrow(() -> new IllegalArgumentException("존재하지 않거나 유효하지 않은 작업 ID입니다. Task UUID: " + taskUuid));
+        // 다른 사용자의 작업은 없는 작업과 똑같이 응답한다(작업 ID가 존재하는지도 알려주지 않음)
+        if (!task.getUser().getEmail().equals(userEmail)) {
+            throw new IllegalArgumentException("존재하지 않거나 유효하지 않은 작업 ID입니다. Task UUID: " + taskUuid);
+        }
 
         return TaskStatusResponse.from(task);
     }

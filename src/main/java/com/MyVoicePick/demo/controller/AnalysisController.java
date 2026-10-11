@@ -60,10 +60,11 @@ public class AnalysisController {
      */
     @GetMapping("/{taskId}/status")
     public ResponseEntity<TaskStatusResponse> getTaskStatus(
-            @PathVariable("taskId") String taskId) {
+            @PathVariable("taskId") String taskId,
+            @org.springframework.security.core.annotation.AuthenticationPrincipal String userEmail) {
         // 비즈니스 로직(DB 검증, 상태 체크, 매핑)은 모두 Service와 DTO에서 우아하게 처리했으므로
         // 컨트롤러는 아주 가볍게 의존성만 넘겨줍니다. (Controller는 우편배달부 역할에만 충실해야 함)
-        TaskStatusResponse response = analysisService.getTaskStatus(taskId);
+        TaskStatusResponse response = analysisService.getTaskStatus(taskId, userEmail);
         return ResponseEntity.ok(response);
     }
 
