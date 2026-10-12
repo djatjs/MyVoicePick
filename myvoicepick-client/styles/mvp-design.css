@@ -152,3 +152,19 @@
   background: rgba(255, 255, 255, 0.2);
 }
 
+
+/* Mobile: 섹션 간격과 버튼 패딩을 좁은 화면에 맞게 축소 */
+@media (max-width: 767px) {
+  :root {
+    --mvp-spacing-section: 72px;
+  }
+
+  .mvp-container {
+    padding: 0 20px;
+  }
+
+  .mvp-btn-primary,
+  .mvp-btn-outline {
+    padding: 14px 24px;
+  }
+}

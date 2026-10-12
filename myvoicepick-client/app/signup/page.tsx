@@ -21,9 +21,9 @@ export default function SignupPage() {
     <main className="mvp-canvas min-h-screen flex flex-col">
       <MvpNav />
 
-      <div className="flex-1 flex items-center justify-center p-6 py-20">
+      <div className="flex-1 flex items-center justify-center px-5 py-12 sm:p-6 sm:py-20">
         <div className="w-full max-w-md">
-          <div className="text-center mb-10">
+          <div className="text-center mb-8 sm:mb-10">
             <Link href="/" className="inline-flex items-center gap-2 mb-2 group">
               <div className="w-10 h-10 bg-gradient-to-tr from-[var(--mvp-primary)] to-[var(--mvp-secondary)] rounded-xl flex items-center justify-center shadow-lg group-hover:rotate-12 transition-transform">
                 <svg viewBox="0 0 24 24" className="w-6 h-6 text-white fill-current">
@@ -34,8 +34,8 @@ export default function SignupPage() {
             </Link>
           </div>
 
-          <div className="mvp-glass-card p-8 space-y-6">
-            <div className="grid grid-cols-2 gap-4">
+          <div className="mvp-glass-card p-6 sm:p-8 space-y-6">
+            <div className="grid grid-cols-2 gap-3 sm:gap-4">
               <div className="space-y-2">
                 <label className="text-xs font-bold uppercase tracking-widest text-[var(--mvp-text-muted)]">First Name</label>
                 <input
@@ -71,7 +71,7 @@ export default function SignupPage() {
 
             <div className="relative">
               <div className="absolute inset-0 flex items-center"><span className="w-full border-t border-white/5"></span></div>
-              <div className="relative flex justify-center text-[10px] uppercase tracking-[0.2em]"><span className="bg-[#1e293b] px-4 text-[var(--mvp-text-muted)]">소셜 계정으로 간편 가입</span></div>
+              <div className="relative flex justify-center text-[10px] uppercase tracking-[0.1em] sm:tracking-[0.2em]"><span className="bg-[#1e293b] px-3 sm:px-4 whitespace-nowrap text-[var(--mvp-text-muted)]">소셜 계정으로 간편 가입</span></div>
             </div>
 
             <div className="flex justify-center gap-6">

@@ -18,17 +18,17 @@ interface Props {
 
 export default function CoreInsights({ latestAnalysis, statLabels }: Props) {
   return (
-    <div className="flex-1 space-y-10 relative z-10">
+    <div className="flex-1 space-y-6 sm:space-y-10 relative z-10">
       <div className="space-y-2">
-        <h3 className="text-xs font-black text-emerald-400 uppercase tracking-[0.4em] mb-4">Latest AI Vocal Profile</h3>
-        <div className="text-4xl md:text-5xl font-black text-white tracking-tighter leading-tight break-keep">
+        <h3 className="text-xs font-black text-emerald-400 uppercase tracking-[0.25em] sm:tracking-[0.4em] mb-3 sm:mb-4">Latest AI Vocal Profile</h3>
+        <div className="text-3xl sm:text-4xl md:text-5xl font-black text-white tracking-tighter leading-tight break-keep">
           {latestAnalysis?.vocalPersona || "Ready to Start"}
         </div>
       </div>
 
       {latestAnalysis ? (
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-x-12 gap-y-8 mt-8">
-          {Object.entries(latestAnalysis.vocalStats || {}).map(([key, val]) => (
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-x-12 gap-y-6 sm:gap-y-8 mt-6 sm:mt-8">
+          {Object.entries(latestAnalysis.vocalStats || {}).filter(([, val]) => typeof val === "number").map(([key, val]) => (
             <div key={key} className="space-y-3 group/stat">
               <div className="flex justify-between items-end">
                 <span className="text-xs font-black text-white/50 uppercase tracking-widest group-hover/stat:text-white/80 transition-colors">
@@ -48,7 +48,7 @@ export default function CoreInsights({ latestAnalysis, statLabels }: Props) {
           ))}
         </div>
       ) : (
-        <div className="py-16 bg-slate-900/40 border border-dashed border-slate-700/50 rounded-3xl flex flex-col items-center justify-center text-center px-6 mt-8">
+        <div className="py-12 sm:py-16 bg-slate-900/40 border border-dashed border-slate-700/50 rounded-3xl flex flex-col items-center justify-center text-center px-6 mt-8">
           <p className="text-white/30 font-black uppercase tracking-widest mb-4 break-keep">No DNA Data Detected</p>
           <a href="/analyze" className="text-xs font-black text-indigo-400 hover:text-indigo-300 hover:underline flex items-center gap-2 transition-colors">
             Start Your First Session &rarr;

@@ -70,20 +70,20 @@ function VocalDnaChart({ data }: { data: number[] }) {
 
   return (
     <div className="relative mt-8 rounded-[var(--mvp-radius-lg)] bg-[#050505] border border-white/5 overflow-hidden">
-      <div className="p-8 pb-0 flex flex-col sm:flex-row sm:items-start justify-between gap-4">
+      <div className="p-5 pb-0 sm:p-8 sm:pb-0 flex flex-col sm:flex-row sm:items-start justify-between gap-4">
         <div>
-          <h3 className="text-xl font-black text-white flex items-center gap-2 mb-2 tracking-tight">
+          <h3 className="text-lg sm:text-xl font-black text-white flex items-center gap-2 mb-2 tracking-tight">
             <Activity className="w-5 h-5 text-indigo-400" />
             Vocal Signature Waveform
           </h3>
-          <p className="text-sm text-white/60 font-medium leading-relaxed max-w-xl">
-            지문처럼 사람마다 다른 고유한 목소리의 주파수 파형입니다.<br/>
+          <p className="text-sm text-white/60 font-medium leading-relaxed max-w-xl break-keep">
+            지문처럼 사람마다 다른 고유한 목소리의 주파수 파형입니다.<br className="hidden sm:block" />{" "}
             MyVoicePick AI는 이 128개의 스펙트럼 데이터를 기반으로 당신과 가장 유사한 프로 가수를 정밀하게 찾아냈습니다.
           </p>
         </div>
       </div>
-      <div className="p-8 pt-8">
-        <div className="relative flex items-end gap-[1px] h-32 sm:h-40 w-full transition-all duration-1000">
+      <div className="p-5 sm:p-8">
+        <div className="relative flex items-end sm:gap-[1px] h-28 sm:h-40 w-full transition-all duration-1000">
           {displayData.map((val, idx) => (
             <div 
               key={idx}
@@ -124,15 +124,15 @@ function VocalGrowthCenter({ isPro, proFeatures, onUpgradeClick }: { isPro: bool
   const data = proFeatures || fallbackData;
 
   return (
-    <div className="mt-12 rounded-[var(--mvp-radius-lg)] bg-[#050505] border border-white/5 overflow-hidden flex flex-col">
+    <div className="mt-8 sm:mt-12 rounded-[var(--mvp-radius-lg)] bg-[#050505] border border-white/5 overflow-hidden flex flex-col">
       {/* Header */}
-      <div className="relative z-30 p-8 pb-6 border-b border-white/5 flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-[#050505]">
+      <div className="relative z-30 p-5 pb-5 sm:p-8 sm:pb-6 border-b border-white/5 flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-[#050505]">
         <div>
-          <h3 className="text-xl font-black text-white flex items-center gap-2 mb-1 tracking-tight">
+          <h3 className="text-lg sm:text-xl font-black text-white flex items-center gap-2 mb-1 tracking-tight">
             <Target className="w-5 h-5 text-indigo-400" />
             Vocal Action Plan
           </h3>
-          <p className="text-sm text-white/40 font-medium">단순한 분석을 넘어, 당신의 목소리를 성장시킬 맞춤형 솔루션</p>
+          <p className="text-sm text-white/40 font-medium break-keep">단순한 분석을 넘어, 당신의 목소리를 성장시킬 맞춤형 솔루션</p>
         </div>
         {!isPro ? (
           <span className="px-4 py-1.5 bg-gradient-to-r from-indigo-500 to-fuchsia-500 text-white text-[10px] font-black rounded-full shadow-lg shadow-fuchsia-500/20 uppercase tracking-widest self-start animate-pulse">
@@ -148,11 +148,11 @@ function VocalGrowthCenter({ isPro, proFeatures, onUpgradeClick }: { isPro: bool
       {/* Content & Paywall Container */}
       <div className="relative flex-1">
         {/* Content Area */}
-      <div className={`p-8 grid md:grid-cols-2 gap-8 transition-all duration-1000 ${!isPro ? 'blur-xl opacity-20 select-none pointer-events-none' : ''}`}>
+      <div className={`p-5 sm:p-8 grid md:grid-cols-2 gap-5 sm:gap-8 transition-all duration-1000 ${!isPro ? 'blur-xl opacity-20 select-none pointer-events-none' : ''}`}>
         
         {/* Left: Actionable Feedback */}
-        <div className="space-y-8">
-          <div className="bg-white/[0.02] border border-white/5 rounded-2xl p-6">
+        <div className="space-y-5 sm:space-y-8">
+          <div className="bg-white/[0.02] border border-white/5 rounded-2xl p-5 sm:p-6">
             <div className="flex items-center gap-2 mb-4">
               <Mic2 className="w-4 h-4 text-emerald-400" />
               <h4 className="font-bold text-white/80 text-sm">최적의 키(Key) 추천</h4>
@@ -161,7 +161,7 @@ function VocalGrowthCenter({ isPro, proFeatures, onUpgradeClick }: { isPro: bool
             <p className="text-xs text-white/40">원곡보다 키를 조정하여 부르면 가장 매력적인 톤이 나옵니다.</p>
           </div>
 
-          <div className="bg-indigo-500/5 border border-indigo-500/10 rounded-2xl p-6 relative overflow-hidden">
+          <div className="bg-indigo-500/5 border border-indigo-500/10 rounded-2xl p-5 sm:p-6 relative overflow-hidden">
             <div className="absolute top-0 right-0 w-24 h-24 bg-indigo-500/10 blur-2xl rounded-full" />
             <div className="flex items-center gap-2 mb-4 relative z-10">
               <Stethoscope className="w-4 h-4 text-indigo-400" />
@@ -174,7 +174,7 @@ function VocalGrowthCenter({ isPro, proFeatures, onUpgradeClick }: { isPro: bool
         </div>
 
         {/* Right: Curated Playlist */}
-        <div className="bg-white/[0.02] border border-white/5 rounded-2xl p-6 flex flex-col">
+        <div className="bg-white/[0.02] border border-white/5 rounded-2xl p-5 sm:p-6 flex flex-col">
           <div className="flex items-center justify-between mb-6">
             <div className="flex items-center gap-2">
               <ListMusic className="w-4 h-4 text-fuchsia-400" />
@@ -185,9 +185,9 @@ function VocalGrowthCenter({ isPro, proFeatures, onUpgradeClick }: { isPro: bool
             {data.playlist.map((song, i) => (
               <div 
                 key={i} 
-                className="flex items-center justify-between p-3 rounded-xl hover:bg-white/5 transition-colors group"
+                className="flex items-center justify-between gap-3 p-3 -mx-3 sm:mx-0 rounded-xl hover:bg-white/5 transition-colors group"
               >
-                <div className="flex items-center gap-4 cursor-pointer" onClick={() => window.open(`https://www.youtube.com/results?search_query=${encodeURIComponent(song.artist + ' ' + song.title)}`, '_blank')} title="유튜브에서 원곡 듣기">
+                <div className="flex items-center gap-4 min-w-0 cursor-pointer" onClick={() => window.open(`https://www.youtube.com/results?search_query=${encodeURIComponent(song.artist + ' ' + song.title)}`, '_blank')} title="유튜브에서 원곡 듣기">
                   <span className="text-lg font-black text-white/20 group-hover:text-fuchsia-400 transition-colors">0{i+1}</span>
                   <div>
                     <p className="font-bold text-white text-sm">{song.title}</p>
@@ -196,7 +196,7 @@ function VocalGrowthCenter({ isPro, proFeatures, onUpgradeClick }: { isPro: bool
                 </div>
                 <div className="flex items-center gap-2">
                   <PlayCircle 
-                    className="w-8 h-8 text-white/20 hover:text-white transition-colors cursor-pointer" 
+                    className="w-8 h-8 shrink-0 text-white/20 hover:text-white transition-colors cursor-pointer" 
                     onClick={() => window.open(`https://www.youtube.com/results?search_query=${encodeURIComponent(song.artist + ' ' + song.title)}`, '_blank')}
                   />
                 </div>
@@ -364,12 +364,12 @@ export default function MvpAudioUploader() {
 
   return (
     <div className="w-full max-w-5xl mx-auto">
-      <div className="mvp-glass-card overflow-hidden flex flex-col min-h-[550px] border-white/10">
+      <div className="mvp-glass-card overflow-hidden flex flex-col sm:min-h-[550px] border-white/10">
         
         {/* Tool Header */}
-        <div className="p-6 sm:p-8 border-b border-white/5 flex items-center justify-between bg-[#0a0a0a]/50">
-          <div className="flex items-center gap-4">
-             <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-xl bg-indigo-500/10 flex items-center justify-center border border-indigo-500/20">
+        <div className="p-4 sm:p-8 border-b border-white/5 flex items-center justify-between gap-3 bg-[#0a0a0a]/50">
+          <div className="flex items-center gap-3 sm:gap-4 min-w-0">
+             <div className="w-10 h-10 sm:w-12 sm:h-12 shrink-0 rounded-xl bg-indigo-500/10 flex items-center justify-center border border-indigo-500/20">
                {uploadState === 'success' ? <CheckCircle2 className="w-5 h-5 text-indigo-400" /> : <Activity className="w-5 h-5 text-indigo-400" />}
              </div>
              <div>
@@ -378,14 +378,14 @@ export default function MvpAudioUploader() {
              </div>
           </div>
           {uploadState === 'success' && (
-            <MvpButton variant="outline" size="md" onClick={() => setUploadState('idle')} className="!py-2 !px-4 text-xs sm:text-sm">
+            <MvpButton variant="outline" size="md" onClick={() => setUploadState('idle')} className="!py-2 !px-4 text-xs sm:text-sm shrink-0">
               <RotateCcw className="w-4 h-4 mr-2" /> New
             </MvpButton>
           )}
         </div>
 
         {/* Tool Body */}
-        <div className="flex-1 p-6 sm:p-8">
+        <div className="flex-1 p-4 sm:p-8">
           {uploadState === 'success' && matchResult ? (
             <div className="animate-in fade-in slide-in-from-bottom-8 duration-1000 ease-out space-y-8">
               
@@ -397,9 +397,9 @@ export default function MvpAudioUploader() {
                   <div className="absolute inset-0 bg-gradient-to-r from-[#0a0a0a] via-[#0a0a0a]/80 to-transparent" />
                 </div>
 
-                <div className="relative z-10 p-8 sm:p-12 flex flex-col md:flex-row gap-8 md:gap-12 items-center md:items-stretch">
+                <div className="relative z-10 p-6 sm:p-12 flex flex-col md:flex-row gap-6 md:gap-12 items-center md:items-stretch">
                   {/* Album Cover */}
-                  <div className="relative w-48 h-48 md:w-56 md:h-56 shrink-0 rounded-2xl overflow-hidden shadow-[0_20px_50px_rgba(0,0,0,0.5)] border border-white/10">
+                  <div className="relative w-40 h-40 sm:w-48 sm:h-48 md:w-56 md:h-56 shrink-0 rounded-2xl overflow-hidden shadow-[0_20px_50px_rgba(0,0,0,0.5)] border border-white/10">
                     <img src={matchResult.albumCoverUrl} className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105" alt={matchResult.artist} />
                     <div className="absolute top-3 right-3 bg-black/70 backdrop-blur-md px-3 py-1.5 rounded-full border border-white/10 flex items-center gap-1.5 shadow-xl">
                        <div className="w-1.5 h-1.5 rounded-full bg-amber-400 animate-pulse" />
@@ -410,7 +410,7 @@ export default function MvpAudioUploader() {
                   {/* Persona Info */}
                   <div className="flex flex-col justify-center flex-1 text-center md:text-left">
                     <span className="text-[10px] font-black tracking-[0.3em] text-indigo-400 uppercase mb-3 block">Acoustic Persona Profiling</span>
-                    <h2 className="text-4xl sm:text-5xl lg:text-6xl font-black mvp-display leading-tight mb-4 text-white tracking-tighter">
+                    <h2 className="text-3xl sm:text-5xl lg:text-6xl font-black mvp-display leading-tight mb-4 break-keep text-white tracking-tighter">
                       &ldquo;{matchResult.vocalPersona}&rdquo;
                     </h2>
                     <div className="flex flex-wrap justify-center md:justify-start gap-2 mb-6">
@@ -426,17 +426,17 @@ export default function MvpAudioUploader() {
               </div>
 
               {/* TWO COLUMNS: Stats & Track */}
-              <div className="grid lg:grid-cols-12 gap-8">
+              <div className="grid lg:grid-cols-12 gap-4 sm:gap-8">
                 
                 {/* Stats Panel (col-span-8) */}
-                <div className="lg:col-span-8 bg-white/[0.02] border border-white/5 rounded-[var(--mvp-radius-lg)] p-8">
-                   <h3 className="text-xs font-black tracking-widest uppercase text-white/50 mb-8 flex items-center gap-2">
+                <div className="lg:col-span-8 bg-white/[0.02] border border-white/5 rounded-[var(--mvp-radius-lg)] p-5 sm:p-8">
+                   <h3 className="text-xs font-black tracking-widest uppercase text-white/50 mb-6 sm:mb-8 flex items-center gap-2">
                      <Activity className="w-4 h-4 text-indigo-400"/>
                      Vocal Attributes
                    </h3>
                    
                    {matchResult.vocalStats && (
-                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-12 gap-y-8">
+                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-12 gap-y-6 sm:gap-y-8">
                        <StatBar label="Warmth" value={matchResult.vocalStats.warmth} icon={<Flame className="w-4 h-4 text-orange-400" />} color="bg-orange-400" />
                        <StatBar label="Clarity" value={matchResult.vocalStats.clarity} icon={<Wind className="w-4 h-4 text-sky-400" />} color="bg-sky-400" />
                        <StatBar label="Power" value={matchResult.vocalStats.power} icon={<Zap className="w-4 h-4 text-amber-400" />} color="bg-amber-400" />
@@ -462,7 +462,7 @@ export default function MvpAudioUploader() {
 
                 {/* Track Panel (col-span-4) */}
                 <div className="lg:col-span-4 flex flex-col h-full">
-                  <div className="bg-gradient-to-br from-indigo-500/10 to-transparent border border-indigo-500/20 rounded-[var(--mvp-radius-lg)] p-8 relative overflow-hidden flex flex-col h-full justify-between group hover:border-indigo-500/40 transition-colors">
+                  <div className="bg-gradient-to-br from-indigo-500/10 to-transparent border border-indigo-500/20 rounded-[var(--mvp-radius-lg)] p-5 sm:p-8 relative overflow-hidden flex flex-col h-full justify-between group hover:border-indigo-500/40 transition-colors">
                      <div className="absolute top-0 right-0 w-32 h-32 bg-indigo-500/10 blur-3xl rounded-full translate-x-10 -translate-y-10" />
                      
                      <div>
@@ -470,7 +470,7 @@ export default function MvpAudioUploader() {
                          <Music className="w-3 h-3" /> Recommended Track
                        </span>
                        <h4 className="text-2xl font-black text-white mb-1 leading-tight">{matchResult.title}</h4>
-                       <p className="text-sm text-white/50 font-bold mb-8">{matchResult.artist}</p>
+                       <p className="text-sm text-white/50 font-bold mb-6 sm:mb-8">{matchResult.artist}</p>
                      </div>
                      
                      <button 
@@ -498,7 +498,7 @@ export default function MvpAudioUploader() {
               />
             </div>
           ) : (
-            <div className="flex flex-col items-center justify-center min-h-[400px]">
+            <div className="flex flex-col items-center justify-center sm:min-h-[400px]">
               <input 
                 type="file" 
                 ref={fileInputRef} 
@@ -509,8 +509,8 @@ export default function MvpAudioUploader() {
               />
               <div
                 className={`
-                  w-full max-w-3xl min-h-[450px] rounded-[var(--mvp-radius-lg)] border border-dashed
-                  flex flex-col items-center justify-center p-12 transition-all duration-700 cursor-pointer group
+                  w-full max-w-3xl min-h-[380px] sm:min-h-[450px] rounded-[var(--mvp-radius-lg)] border border-dashed
+                  flex flex-col items-center justify-center px-5 py-10 sm:p-12 transition-all duration-700 cursor-pointer group
                   ${uploadState === 'dragging' ? 'border-indigo-500 bg-indigo-500/10 scale-[1.02]'
                     : isBusy ? 'border-white/10 bg-white/[0.02] !cursor-default'
                       : uploadState === 'error' ? 'border-red-500/30 bg-red-500/5'
@@ -527,16 +527,16 @@ export default function MvpAudioUploader() {
                 onClick={() => { if (uploadState === 'idle' || uploadState === 'error') fileInputRef.current?.click(); }}
               >
                 {isBusy ? (
-                  <div role="status" aria-live="polite" className="flex flex-col items-center gap-10">
+                  <div role="status" aria-live="polite" className="flex flex-col items-center gap-8 sm:gap-10">
                     <div className="relative">
                        <div className="absolute inset-0 bg-indigo-500/20 blur-3xl rounded-full animate-pulse" />
-                       <Loader2 className="w-20 h-20 animate-spin text-indigo-500 relative z-10" />
+                       <Loader2 className="w-16 h-16 sm:w-20 sm:h-20 animate-spin text-indigo-500 relative z-10" />
                     </div>
                     <div className="text-center space-y-3">
-                       <h3 className="text-3xl font-black tracking-tight text-white">
+                       <h3 className="text-2xl sm:text-3xl font-black tracking-tight text-white">
                          {uploadState === 'uploading' ? '음성 파일 업로드 중...' : '음성 분석 진행 중...'}
                        </h3>
-                       <p className="text-lg text-[var(--mvp-text-muted)] font-medium">
+                       <p className="text-sm sm:text-lg text-[var(--mvp-text-muted)] font-medium break-keep">
                          {uploadState === 'uploading'
                            ? '파일을 서버로 전송하고 있습니다. 잠시만 기다려 주세요.'
                            : '분석을 준비하거나 목소리의 특징을 추출하고 있습니다. 완료되면 결과가 자동으로 표시됩니다.'}
@@ -545,30 +545,30 @@ export default function MvpAudioUploader() {
                   </div>
                 ) : uploadState === 'error' ? (
                   <div className="flex flex-col items-center gap-6 text-center animate-in zoom-in-95 duration-500">
-                    <div className="w-24 h-24 bg-red-500/10 rounded-3xl flex items-center justify-center border border-red-500/20">
-                      <AlertCircle className="w-12 h-12 text-red-500" />
+                    <div className="w-20 h-20 sm:w-24 sm:h-24 bg-red-500/10 rounded-3xl flex items-center justify-center border border-red-500/20">
+                      <AlertCircle className="w-10 h-10 sm:w-12 sm:h-12 text-red-500" />
                     </div>
                     <div className="space-y-2">
-                       <h3 className="text-3xl font-black text-red-500 tracking-tight">Analysis Failed</h3>
-                       <p className="text-lg text-[var(--mvp-text-muted)] max-w-sm font-medium">{errorMessage}</p>
+                       <h3 className="text-2xl sm:text-3xl font-black text-red-500 tracking-tight">Analysis Failed</h3>
+                       <p className="text-sm sm:text-lg text-[var(--mvp-text-muted)] max-w-sm font-medium break-keep">{errorMessage}</p>
                     </div>
                     <MvpButton variant="outline" size="md" onClick={(e) => { e.stopPropagation(); setUploadState('idle'); }} className="mt-6 !px-8">
                       Try Again
                     </MvpButton>
                   </div>
                 ) : (
-                  <div className="flex flex-col items-center gap-10 text-center">
+                  <div className="flex flex-col items-center gap-7 sm:gap-10 text-center">
                     <div className="relative">
                       <div className="absolute inset-0 bg-indigo-500/20 blur-3xl rounded-full group-hover:scale-150 transition-transform duration-1000" />
-                      <div className="w-32 h-32 bg-gradient-to-tr from-[#111] to-[#1a1a1a] rounded-[var(--mvp-radius-lg)] flex items-center justify-center border border-white/10 shadow-2xl relative z-10 group-hover:-translate-y-2 transition-transform duration-500">
-                        <UploadCloud className="w-16 h-16 text-indigo-400" />
+                      <div className="w-24 h-24 sm:w-32 sm:h-32 bg-gradient-to-tr from-[#111] to-[#1a1a1a] rounded-[var(--mvp-radius-lg)] flex items-center justify-center border border-white/10 shadow-2xl relative z-10 group-hover:-translate-y-2 transition-transform duration-500">
+                        <UploadCloud className="w-12 h-12 sm:w-16 sm:h-16 text-indigo-400" />
                       </div>
                     </div>
-                    <div className="space-y-4">
-                       <h3 className="text-4xl font-black tracking-tighter text-white">Your Sound, Our Data.</h3>
-                       <p className="text-lg text-[var(--mvp-text-muted)] max-w-sm font-medium break-keep">MP3, WAV 파일을 드롭하거나 클릭하여 당신의 고유한 보컬 DNA를 발견하세요.</p>
+                    <div className="space-y-3 sm:space-y-4">
+                       <h3 className="text-[1.7rem] sm:text-4xl font-black tracking-tighter text-white">Your Sound, Our Data.</h3>
+                       <p className="text-sm sm:text-lg text-[var(--mvp-text-muted)] max-w-sm font-medium break-keep">MP3, WAV 파일을 드롭하거나 클릭하여 당신의 고유한 보컬 DNA를 발견하세요.</p>
                     </div>
-                    <MvpButton variant="primary" size="lg" className="!px-10 shadow-[0_15px_30px_rgba(99,102,241,0.3)] !rounded-full">Choose Audio File</MvpButton>
+                    <MvpButton variant="primary" size="lg" className="!px-8 sm:!px-10 text-base sm:text-lg shadow-[0_15px_30px_rgba(99,102,241,0.3)] !rounded-full">Choose Audio File</MvpButton>
                   </div>
                 )}
               </div>

@@ -6,16 +6,16 @@ export function CtaSection() {
   return (
     <section className="mvp-section text-center relative">
       <div className="mvp-container max-w-4xl">
-         <div className="mvp-glass-card p-12 md:p-20 relative overflow-hidden group hover:border-indigo-500/30 transition-colors duration-500">
+         <div className="mvp-glass-card px-6 py-12 md:p-20 relative overflow-hidden group hover:border-indigo-500/30 transition-colors duration-500">
             <div className="relative z-10">
-              <h2 className="text-4xl md:text-5xl font-black mb-6 tracking-tight">
+              <h2 className="text-2xl sm:text-4xl md:text-5xl font-black mb-4 md:mb-6 tracking-tight break-keep">
                 지금 당신의 목소리를 <br className="hidden md:block" />발견할 준비가 되셨나요?
               </h2>
-              <p className="text-[var(--mvp-text-muted)] mb-10 max-w-xl mx-auto text-lg">
+              <p className="text-[var(--mvp-text-muted)] mb-8 md:mb-10 max-w-xl mx-auto text-sm sm:text-lg break-keep">
                 이미 전 세계 수많은 사용자가 MyVoicePick을 통해 자신의 음악적 정체성을 찾았습니다. 지금 바로 경험해보세요.
               </p>
               <Link href="/analyze">
-                <MvpButton variant="primary" size="lg" className="text-lg px-10 py-4 group-hover:scale-105 transition-transform">
+                <MvpButton variant="primary" size="lg" className="text-base sm:text-lg px-10 py-4 group-hover:scale-105 transition-transform">
                   무료로 분석 시작하기
                 </MvpButton>
               </Link>

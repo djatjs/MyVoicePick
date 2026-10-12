@@ -53,22 +53,22 @@ function SuccessContent() {
         {status === 'loading' && (
             <>
                 <Loader2 className="w-20 h-20 text-indigo-500 animate-spin mx-auto" />
-                <h2 className="text-3xl font-black text-white">결제 승인 중...</h2>
-                <p className="text-white/60 font-medium text-lg">안전하게 결제를 완료하고 있습니다.</p>
+                <h2 className="text-2xl sm:text-3xl font-black text-white">결제 승인 중...</h2>
+                <p className="text-white/60 font-medium text-base sm:text-lg">안전하게 결제를 완료하고 있습니다.</p>
             </>
         )}
         {status === 'success' && (
             <div className="animate-in zoom-in-95 duration-500">
                 <CheckCircle2 className="w-24 h-24 text-emerald-400 mx-auto mb-6" />
-                <h2 className="text-4xl font-black text-white mb-4">결제 완료!</h2>
-                <p className="text-white/60 text-lg mb-8 font-medium">성공적으로 {plan} 플랜으로 업그레이드 되었습니다.<br/>잠시 후 마이페이지로 이동합니다.</p>
+                <h2 className="text-3xl sm:text-4xl font-black text-white mb-4">결제 완료!</h2>
+                <p className="text-white/60 text-base sm:text-lg mb-8 break-keep font-medium">성공적으로 {plan} 플랜으로 업그레이드 되었습니다.<br/>잠시 후 마이페이지로 이동합니다.</p>
             </div>
         )}
         {status === 'error' && (
             <div className="animate-in zoom-in-95 duration-500">
                 <AlertCircle className="w-24 h-24 text-red-500 mx-auto mb-6" />
-                <h2 className="text-4xl font-black text-red-500 mb-4">결제 승인 실패</h2>
-                <p className="text-white/60 text-lg mb-8">오류가 발생했습니다. 고객센터로 문의해주세요.</p>
+                <h2 className="text-3xl sm:text-4xl font-black text-red-500 mb-4">결제 승인 실패</h2>
+                <p className="text-white/60 text-base sm:text-lg mb-8 break-keep">오류가 발생했습니다. 고객센터로 문의해주세요.</p>
                 <button onClick={() => router.push('/mypage')} className="px-8 py-3 bg-white/10 rounded-xl text-white font-bold hover:bg-white/20 transition-colors">돌아가기</button>
             </div>
         )}

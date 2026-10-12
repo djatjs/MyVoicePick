@@ -69,19 +69,19 @@ function CheckoutContent() {
   };
 
   return (
-    <div className="w-full max-w-2xl bg-white rounded-3xl p-8 shadow-2xl relative z-10 animate-fade-in">
-      <h2 className="text-3xl font-black text-gray-900 mb-2">결제하기</h2>
-      <p className="text-gray-500 mb-8 font-medium">안전한 토스페이먼츠 환경에서 결제가 진행됩니다.</p>
+    <div className="w-full max-w-2xl bg-white rounded-3xl p-5 sm:p-8 shadow-2xl relative z-10 animate-fade-in">
+      <h2 className="text-2xl sm:text-3xl font-black text-gray-900 mb-2">결제하기</h2>
+      <p className="text-sm sm:text-base text-gray-500 mb-5 sm:mb-8 font-medium break-keep pr-8 sm:pr-0">안전한 토스페이먼츠 환경에서 결제가 진행됩니다.</p>
       
-      <div className="mb-6 p-5 bg-indigo-50 border border-indigo-100 rounded-2xl flex justify-between items-center">
+      <div className="mb-5 sm:mb-6 p-4 sm:p-5 bg-indigo-50 border border-indigo-100 rounded-2xl flex justify-between items-center">
           <span className="font-bold text-gray-600">선택한 플랜</span>
-          <span className="font-black text-indigo-600 text-xl tracking-tight">{plan} 플랜</span>
+          <span className="font-black text-indigo-600 text-lg sm:text-xl tracking-tight">{plan} 플랜</span>
       </div>
       
       <div id="payment-method" className="w-full" />
       <div id="agreement" className="w-full mt-4" />
       
-      <MvpButton onClick={handlePayment} disabled={!isReady} className="w-full mt-8 !py-4 text-lg">
+      <MvpButton onClick={handlePayment} disabled={!isReady} className="w-full mt-6 sm:mt-8 !py-4 text-base sm:text-lg">
         {isReady ? `${price.toLocaleString()}원 결제하기` : '결제 모듈 불러오는 중...'}
       </MvpButton>
     </div>

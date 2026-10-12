@@ -169,23 +169,23 @@ export default function MyPage() {
   };
 
   return (
-    <main className="mvp-canvas min-h-screen flex flex-col relative overflow-hidden">
+    <main className="mvp-canvas min-h-screen flex flex-col relative overflow-clip">
       {/* Background Decor */}
       <div className="absolute top-[-10%] left-[-10%] w-[40%] h-[40%] bg-indigo-500/10 rounded-full blur-[120px] pointer-events-none"></div>
       <div className="absolute bottom-[-10%] right-[-10%] w-[40%] h-[40%] bg-fuchsia-500/10 rounded-full blur-[120px] pointer-events-none"></div>
 
       <MvpNav />
 
-      <div className="flex-1 max-w-7xl w-full mx-auto p-6 py-16 lg:py-24 space-y-20 relative z-10">
+      <div className="flex-1 max-w-7xl w-full mx-auto px-5 sm:px-6 py-10 sm:py-16 lg:py-24 space-y-10 sm:space-y-20 relative z-10">
 
         <div className="animate-in fade-in slide-in-from-bottom-8 duration-1000">
           <ProfileHeader userEmail={userEmail} userPlan={userPlan} />
         </div>
 
         {/* Top Insights Grid */}
-        <section className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-stretch animate-in fade-in slide-in-from-bottom-8 duration-1000 delay-150">
+        <section className="grid grid-cols-1 lg:grid-cols-12 gap-5 sm:gap-8 items-stretch animate-in fade-in slide-in-from-bottom-8 duration-1000 delay-150">
           {/* Main Visual Profile */}
-          <div className="lg:col-span-8 mvp-glass-card p-10 md:p-12 relative overflow-hidden group">
+          <div className="lg:col-span-8 mvp-glass-card p-6 sm:p-10 md:p-12 relative overflow-hidden group">
             <div className="absolute top-0 right-0 w-96 h-96 bg-indigo-500/5 rounded-full blur-[100px] -mr-48 -mt-48 group-hover:bg-indigo-500/10 transition-all duration-700"></div>
             <CoreInsights latestAnalysis={latestAnalysis} statLabels={statLabels} />
           </div>
@@ -196,17 +196,17 @@ export default function MyPage() {
         </section>
 
         {/* Session History Section */}
-        <section className="space-y-8 pt-8 animate-in fade-in slide-in-from-bottom-8 duration-1000 delay-300">
+        <section className="space-y-6 sm:space-y-8 pt-2 sm:pt-8 animate-in fade-in slide-in-from-bottom-8 duration-1000 delay-300">
           <div className="flex items-center justify-between border-b border-white/5 pb-4">
             <h4 className="text-xl font-black text-white tracking-tighter flex items-center gap-3">
               <History className="w-6 h-6 text-indigo-400" /> Session History
             </h4>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 sm:gap-6">
             {history.length > 0 ? history.map((task) => (
-              <Link key={task.taskId} href={`/analyze?taskId=${task.taskId}`} className="block bg-slate-900/40 p-6 hover:bg-slate-800 transition-all group border border-slate-700/50 rounded-[24px] shadow-lg relative overflow-hidden backdrop-blur-md">
-                <div className="absolute top-0 right-0 p-4 opacity-0 group-hover:opacity-100 transition-opacity z-20">
+              <Link key={task.taskId} href={`/analyze?taskId=${task.taskId}`} className="block bg-slate-900/40 p-5 sm:p-6 hover:bg-slate-800 transition-all group border border-slate-700/50 rounded-[24px] shadow-lg relative overflow-hidden backdrop-blur-md">
+                <div className="absolute top-0 right-0 p-3 sm:p-4 md:opacity-0 md:group-hover:opacity-100 transition-opacity z-20">
                   <button 
                     onClick={(e) => handleDeleteHistory(e, task.taskId)}
                     className="p-2 rounded-xl bg-red-500/10 text-white/30 hover:text-red-400 hover:bg-red-500/20 transition-all backdrop-blur-sm"
@@ -216,14 +216,14 @@ export default function MyPage() {
                   </button>
                 </div>
                 <div className="space-y-3 relative z-10">
-                  <div className="text-lg font-black text-white group-hover:text-indigo-400 transition-colors pr-8 leading-tight">
+                  <div className="text-lg font-black text-white group-hover:text-indigo-400 transition-colors pr-10 leading-tight break-keep">
                     {task.vocalPersona || "Vocal Analysis DNA"}
                   </div>
                   <div className="text-xs font-bold text-white/40 flex items-center gap-2">
                     <Music className="w-3.5 h-3.5 text-emerald-400" /> {task.matchedSongTitle || "N/A"}
                   </div>
                 </div>
-                <div className="mt-8 flex items-center justify-between text-[10px] font-black text-white/20 uppercase tracking-widest relative z-10">
+                <div className="mt-6 sm:mt-8 flex items-center justify-between text-[10px] font-black text-white/20 uppercase tracking-widest relative z-10">
                   <span className={task.status === 'COMPLETED' ? 'text-emerald-500/50' : 'text-amber-500/50'}>{task.status}</span>
                   <div className="w-8 h-8 rounded-full bg-white/5 flex items-center justify-center group-hover:bg-indigo-500 group-hover:text-white transition-all">
                     <ChevronRight className="w-4 h-4 group-hover:translate-x-0.5 transition-transform" />
@@ -231,7 +231,7 @@ export default function MyPage() {
                 </div>
               </Link>
             )) : (
-              <div className="col-span-full py-20 border border-dashed border-white/10 rounded-[32px] text-center bg-slate-900/20 backdrop-blur-sm">
+              <div className="col-span-full py-14 sm:py-20 px-5 border border-dashed border-white/10 rounded-[32px] text-center bg-slate-900/20 backdrop-blur-sm">
                 <div className="w-16 h-16 bg-white/5 rounded-full flex items-center justify-center mx-auto mb-4">
                   <History className="w-6 h-6 text-white/20" />
                 </div>
@@ -244,16 +244,16 @@ export default function MyPage() {
 
         {/* Upgrade Banner for FREE users */}
         {userPlan === 'FREE' && (
-          <div className="mt-12 p-10 md:p-12 bg-gradient-to-r from-indigo-900/80 via-violet-900/60 to-slate-900/80 border border-indigo-500/30 rounded-[32px] shadow-[0_20px_40px_rgba(99,102,241,0.15)] relative overflow-hidden flex flex-col md:flex-row items-center justify-between gap-8 backdrop-blur-xl group animate-in fade-in slide-in-from-bottom-8 duration-1000 delay-500">
+          <div className="mt-12 p-7 sm:p-10 md:p-12 bg-gradient-to-r from-indigo-900/80 via-violet-900/60 to-slate-900/80 border border-indigo-500/30 rounded-[32px] shadow-[0_20px_40px_rgba(99,102,241,0.15)] relative overflow-hidden flex flex-col md:flex-row items-center justify-between gap-8 backdrop-blur-xl group animate-in fade-in slide-in-from-bottom-8 duration-1000 delay-500">
             <div className="absolute -right-20 -bottom-20 w-64 h-64 bg-indigo-500/20 rounded-full blur-[80px] group-hover:bg-fuchsia-500/20 transition-all duration-1000"></div>
             <div className="relative z-10 flex-1 flex flex-col md:flex-row items-center md:items-start gap-6 text-center md:text-left">
               <div className="w-16 h-16 bg-gradient-to-br from-indigo-400 to-fuchsia-400 rounded-2xl flex items-center justify-center shadow-lg rotate-3 group-hover:rotate-6 transition-transform">
                 <Zap className="w-8 h-8 text-white -rotate-3 group-hover:-rotate-6 transition-transform" />
               </div>
               <div>
-                <h4 className="text-3xl font-black text-white mb-2 tracking-tighter drop-shadow-md">Unlock Studio PRO.</h4>
-                <p className="text-white/70 text-sm font-medium leading-relaxed max-w-xl">
-                  128포인트 정밀 DNA 분석부터, 취약점을 보완하는 전용 1:1 보컬 트레이닝 가이드까지.<br/>PRO 멤버십으로 한계 없는 성장을 경험하세요.
+                <h4 className="text-2xl sm:text-3xl font-black text-white mb-2 tracking-tighter drop-shadow-md">Unlock Studio PRO.</h4>
+                <p className="text-white/70 text-sm font-medium leading-relaxed max-w-xl break-keep">
+                  128포인트 정밀 DNA 분석부터, 취약점을 보완하는 전용 1:1 보컬 트레이닝 가이드까지.<br className="hidden md:block" />{" "}PRO 멤버십으로 한계 없는 성장을 경험하세요.
                 </p>
               </div>
             </div>

@@ -17,14 +17,14 @@ export function DashboardPreview() {
   }, []);
 
   return (
-    <section className="pt-24 pb-[120px] relative z-10 overflow-hidden">
+    <section className="pt-16 pb-20 md:pt-24 md:pb-[120px] relative z-10 overflow-hidden">
       <div className="mvp-container">
-        <div className="text-center mb-12">
+        <div className="text-center mb-8 md:mb-12">
           <span className="text-indigo-400 font-bold tracking-widest uppercase text-xs">Inside the Engine</span>
-          <h2 className="text-4xl font-black mt-2">정밀한 분석, <span className="mvp-gradient-text">직관적인 결과</span></h2>
+          <h2 className="text-3xl md:text-4xl font-black mt-2 break-keep">정밀한 분석, <span className="mvp-gradient-text">직관적인 결과</span></h2>
         </div>
 
-        <div className="grid lg:grid-cols-12 gap-8 items-center">
+        <div className="grid lg:grid-cols-12 gap-10 lg:gap-8 items-center">
           {/* 왼쪽: 분석 카트 (UI Mockup) */}
           <div className="lg:col-span-7 relative group">
             <div className="mvp-glass-card overflow-hidden border-white/10 shadow-2xl relative">
@@ -40,7 +40,7 @@ export function DashboardPreview() {
               <div className="p-6 md:p-10 bg-gradient-to-br from-indigo-500/5 to-transparent">
                 <div className="flex flex-col md:flex-row gap-8 items-center">
                   {/* 시각화 원형 차트 */}
-                  <div className="relative w-48 h-48 flex items-center justify-center">
+                  <div className="relative w-40 h-40 md:w-48 md:h-48 shrink-0 flex items-center justify-center">
                     <div className="absolute inset-0 border-4 border-indigo-500/20 rounded-full"></div>
                     <div
                       className="absolute inset-0 border-4 border-indigo-500 rounded-full border-t-transparent animate-spin"
@@ -104,8 +104,8 @@ export function DashboardPreview() {
               {/* <div className="w-12 h-12 bg-white/5 rounded-2xl flex items-center justify-center border border-white/10">
                 <BarChart3 className="text-indigo-400" />
               </div> */}
-              <h3 className="text-3xl font-bold leading-tight">데이터로 증명하는 <br />당신의 목소리</h3>
-              <p className="text-[var(--mvp-text-muted)] leading-relaxed">
+              <h3 className="text-2xl md:text-3xl font-bold leading-tight">데이터로 증명하는 <br />당신의 목소리</h3>
+              <p className="text-[var(--mvp-text-muted)] leading-relaxed break-keep">
                 단순히 '비슷하다'는 느낌을 넘어, 주파수 대역별 특징과 발성 메커니즘을 분석합니다.
                 전문적인 보컬 트레이너가 옆에 있는 것처럼 당신의 강점과 보완점을 수치로 보여드립니다.
               </p>

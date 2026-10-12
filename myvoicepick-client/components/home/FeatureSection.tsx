@@ -35,24 +35,24 @@ export function FeatureSection() {
       <div className="absolute top-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-white/10 to-transparent"></div>
       
       <div className="mvp-container relative z-10">
-        <div className="text-center mb-16">
-          <h2 className="text-4xl md:text-5xl font-black mb-4">Core <span className="mvp-gradient-text">Technologies</span></h2>
-          <p className="text-[var(--mvp-text-muted)] text-lg max-w-2xl mx-auto">
+        <div className="text-center mb-10 md:mb-16">
+          <h2 className="text-3xl md:text-5xl font-black mb-4">Core <span className="mvp-gradient-text">Technologies</span></h2>
+          <p className="text-[var(--mvp-text-muted)] text-base md:text-lg max-w-2xl mx-auto break-keep">
             최신 음향 공학 기술과 인공지능이 결합하여 당신의 목소리를 완벽하게 해독합니다.
           </p>
         </div>
 
-        <div className="grid md:grid-cols-3 gap-8">
+        <div className="grid md:grid-cols-3 gap-5 md:gap-8">
           {FEATURES.map((feature, idx) => (
             <div 
               key={idx} 
-              className={`mvp-glass-card p-8 hover:border-white/20 transition-all duration-500 group hover:-translate-y-2 ${feature.glowClass}`}
+              className={`mvp-glass-card p-6 md:p-8 hover:border-white/20 transition-all duration-500 group hover:-translate-y-2 ${feature.glowClass}`}
             >
-              <div className={`w-16 h-16 rounded-2xl flex items-center justify-center mb-8 border transition-transform duration-500 group-hover:scale-110 group-hover:rotate-3 ${feature.bgClass} ${feature.borderClass}`}>
+              <div className={`w-14 h-14 md:w-16 md:h-16 rounded-2xl flex items-center justify-center mb-5 md:mb-8 border transition-transform duration-500 group-hover:scale-110 group-hover:rotate-3 ${feature.bgClass} ${feature.borderClass}`}>
                 {feature.icon}
               </div>
-              <h4 className="text-2xl font-bold mb-4 tracking-tight">{feature.title}</h4>
-              <p className="text-[var(--mvp-text-muted)] text-base leading-relaxed break-keep">
+              <h4 className="text-xl md:text-2xl font-bold mb-3 md:mb-4 tracking-tight">{feature.title}</h4>
+              <p className="text-[var(--mvp-text-muted)] text-sm md:text-base leading-relaxed break-keep">
                 {feature.description}
               </p>
             </div>

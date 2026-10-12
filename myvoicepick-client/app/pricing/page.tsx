@@ -9,22 +9,22 @@ export default function PricingPage() {
     <main className="mvp-canvas min-h-screen flex flex-col">
       <MvpNav />
 
-      <div className="flex-1 py-24">
+      <div className="flex-1 py-14 md:py-24">
         <div className="mvp-container">
           {/* Header */}
-          <div className="text-center max-w-5xl mx-auto mb-20 px-4">
+          <div className="text-center max-w-5xl mx-auto mb-12 md:mb-20">
             <span className="mvp-gradient-text text-xs font-black uppercase tracking-[0.3em] mb-4 block">Simple Pricing</span>
-            <h1 className="text-5xl md:text-6xl mvp-display mb-6">Scale Your Sound.</h1>
-            <p className="text-xl text-[var(--mvp-text-muted)] break-keep leading-relaxed md:whitespace-nowrap">
+            <h1 className="text-4xl md:text-6xl mvp-display mb-4 md:mb-6">Scale Your Sound.</h1>
+            <p className="text-base md:text-xl text-[var(--mvp-text-muted)] break-keep leading-relaxed md:whitespace-nowrap">
               당신의 보컬 여정에 맞는 플랜을 선택하세요. 기본적인 분석부터 전문적인 레코딩 가이드까지 제공합니다.
             </p>
           </div>
 
           {/* Pricing Grid */}
-          <div className="grid md:grid-cols-3 gap-8">
+          <div className="grid md:grid-cols-3 gap-6 md:gap-8">
 
             {/* Free Plan */}
-            <div className="mvp-glass-card p-10 flex flex-col h-full border-white/5">
+            <div className="mvp-glass-card p-7 md:p-10 flex flex-col h-full border-white/5">
               <div className="mb-8">
                 <h3 className="text-2xl font-bold mb-2">Free</h3>
                 <div className="flex items-end gap-1">
@@ -37,21 +37,21 @@ export default function PricingPage() {
                   <Check className="w-5 h-5 text-indigo-400 shrink-0" />
                   <div>
                     <p className="font-bold">일일 3회 분석</p>
-                    <p className="text-[10px] text-[var(--mvp-text-muted)] leading-tight">가벼운 체험을 위한 기본 횟수 제공</p>
+                    <p className="text-xs text-[var(--mvp-text-muted)] leading-snug mt-0.5">가벼운 체험을 위한 기본 횟수 제공</p>
                   </div>
                 </li>
                 <li className="flex items-start gap-3 text-sm">
                   <Check className="w-5 h-5 text-indigo-400 shrink-0" />
                   <div>
                     <p className="font-bold">기본 아티스트 매칭</p>
-                    <p className="text-[10px] text-[var(--mvp-text-muted)] leading-tight">대중적인 인기 아티스트 TOP 10 대조</p>
+                    <p className="text-xs text-[var(--mvp-text-muted)] leading-snug mt-0.5">대중적인 인기 아티스트 TOP 10 대조</p>
                   </div>
                 </li>
                 <li className="flex items-start gap-3 text-sm text-[var(--mvp-text-muted)]">
                   <Check className="w-5 h-5 text-white/10 shrink-0" />
                   <div>
                     <p className="font-bold line-through">정밀 DNA 리포트</p>
-                    <p className="text-[10px] leading-tight">Pro 플랜 전용 기능</p>
+                    <p className="text-xs leading-snug mt-0.5">Pro 플랜 전용 기능</p>
                   </div>
                 </li>
               </ul>
@@ -59,7 +59,7 @@ export default function PricingPage() {
             </div>
 
             {/* Pro Plan */}
-            <div className="mvp-glass-card p-10 flex flex-col h-full border-indigo-500/30 relative">
+            <div className="mvp-glass-card p-7 md:p-10 flex flex-col h-full border-indigo-500/30 relative">
               <div className="absolute top-0 left-1/2 -translate-x-1/2 -translate-y-1/2 bg-indigo-500 text-white px-4 py-1 rounded-full text-xs font-black uppercase tracking-widest shadow-[0_0_20px_rgba(99,102,241,0.5)]">
                 Most Popular
               </div>
@@ -75,21 +75,21 @@ export default function PricingPage() {
                   <Check className="w-5 h-5 text-indigo-400 shrink-0" />
                   <div>
                     <p className="font-bold">무제한 보컬 분석</p>
-                    <p className="text-[10px] text-[var(--mvp-text-muted)] leading-tight">횟수 제한 없이 마음껏 분석 가능</p>
+                    <p className="text-xs text-[var(--mvp-text-muted)] leading-snug mt-0.5">횟수 제한 없이 마음껏 분석 가능</p>
                   </div>
                 </li>
                 <li className="flex items-start gap-3 text-sm">
                   <Check className="w-5 h-5 text-indigo-400 shrink-0" />
                   <div>
                     <p className="font-bold">전체 아티스트 데이터베이스</p>
-                    <p className="text-[10px] text-[var(--mvp-text-muted)] leading-tight">5만 명 이상의 국내외 전체 DB 정밀 매칭</p>
+                    <p className="text-xs text-[var(--mvp-text-muted)] leading-snug mt-0.5">5만 명 이상의 국내외 전체 DB 정밀 매칭</p>
                   </div>
                 </li>
                 <li className="flex items-start gap-3 text-sm">
                   <Check className="w-5 h-5 text-indigo-400 shrink-0" />
                   <div>
                     <p className="font-bold">128포인트 DNA 분석</p>
-                    <p className="text-[10px] text-[var(--mvp-text-muted)] leading-tight">음역대, 배음 구조 등 전문 보컬 지표 제공</p>
+                    <p className="text-xs text-[var(--mvp-text-muted)] leading-snug mt-0.5">음역대, 배음 구조 등 전문 보컬 지표 제공</p>
                   </div>
                 </li>
               </ul>
@@ -97,7 +97,7 @@ export default function PricingPage() {
             </div>
 
             {/* Studio Plan */}
-            <div className="mvp-glass-card p-10 flex flex-col h-full border-white/5">
+            <div className="mvp-glass-card p-7 md:p-10 flex flex-col h-full border-white/5">
               <div className="mb-8">
                 <h3 className="text-2xl font-bold mb-2">Studio</h3>
                 <div className="flex items-end gap-1">
@@ -116,14 +116,14 @@ export default function PricingPage() {
                   <Check className="w-5 h-5 text-indigo-400 shrink-0" />
                   <div>
                     <p className="font-bold">고음질 멀티트랙 레코딩</p>
-                    <p className="text-[10px] text-[var(--mvp-text-muted)] leading-tight">작곡/편집용 고품질 보컬 파일 추출</p>
+                    <p className="text-xs text-[var(--mvp-text-muted)] leading-snug mt-0.5">작곡/편집용 고품질 보컬 파일 추출</p>
                   </div>
                 </li>
                 <li className="flex items-start gap-3 text-sm">
                   <Check className="w-5 h-5 text-indigo-400 shrink-0" />
                   <div>
                     <p className="font-bold">실시간 피치 피드백</p>
-                    <p className="text-[10px] text-[var(--mvp-text-muted)] leading-tight">연습 중 실시간 음정/발성 교정 가이드</p>
+                    <p className="text-xs text-[var(--mvp-text-muted)] leading-snug mt-0.5">연습 중 실시간 음정/발성 교정 가이드</p>
                   </div>
                 </li>
               </ul>

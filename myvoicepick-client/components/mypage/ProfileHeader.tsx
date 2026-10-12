@@ -10,7 +10,7 @@ interface Props {
 
 export default function ProfileHeader({ userEmail, userPlan }: Props) {
   return (
-    <section className="relative flex flex-col md:flex-row md:items-end justify-between gap-8 border-b border-white/5 pb-12">
+    <section className="relative flex flex-col md:flex-row md:items-end justify-between gap-6 md:gap-8 border-b border-white/5 pb-8 md:pb-12">
       <div className="absolute top-[-50%] left-[-10%] w-[60%] h-[150%] bg-gradient-to-r from-indigo-500/10 via-fuchsia-500/5 to-transparent blur-[100px] pointer-events-none" />
       
       <div className="relative z-10 flex items-center gap-6 sm:gap-8">
@@ -19,7 +19,7 @@ export default function ProfileHeader({ userEmail, userPlan }: Props) {
           <Mic2 className="w-8 h-8 text-white/50" />
         </div>
 
-        <div className="space-y-4">
+        <div className="space-y-3 sm:space-y-4 min-w-0">
           <div className="flex flex-wrap items-center gap-3">
             <div className="px-3 py-1 bg-gradient-to-r from-indigo-500/10 to-fuchsia-500/10 border border-indigo-500/20 rounded-full text-[10px] font-black text-indigo-400 uppercase tracking-widest flex items-center gap-1.5 shadow-[0_0_15px_rgba(99,102,241,0.2)]">
               <Star className="w-3 h-3" /> {userPlan} Member
@@ -28,7 +28,7 @@ export default function ProfileHeader({ userEmail, userPlan }: Props) {
               Verified Studio
             </div>
           </div>
-          <h1 className="text-4xl sm:text-5xl md:text-6xl font-black text-white tracking-tighter drop-shadow-lg">
+          <h1 className="text-3xl sm:text-5xl md:text-6xl font-black text-white tracking-tighter drop-shadow-lg break-all">
             {userEmail?.split('@')[0]}<span className="text-white/20 font-light">.workspace</span>
           </h1>
           <p className="text-white/50 text-sm sm:text-base md:text-lg font-medium max-w-2xl break-keep">
@@ -37,7 +37,7 @@ export default function ProfileHeader({ userEmail, userPlan }: Props) {
         </div>
       </div>
 
-      <div className="relative z-10 flex w-full md:w-auto mt-4 md:mt-0">
+      <div className="relative z-10 flex w-full md:w-auto">
         <Link href="/analyze" className="w-full md:w-auto">
           <button className="group w-full md:w-auto flex items-center justify-center gap-2 h-14 px-8 rounded-2xl bg-white text-black font-black uppercase tracking-widest hover:bg-gray-200 transition-all shadow-[0_0_30px_rgba(255,255,255,0.15)]">
             <Play className="w-4 h-4 fill-current group-hover:scale-110 transition-transform" />

@@ -25,7 +25,7 @@ interface Props {
  */
 export default function ProInsights({ latestAnalysis, userPlan }: Props) {
   return (
-    <div className="flex flex-col h-full p-8 bg-gradient-to-b from-slate-800/40 to-transparent rounded-[32px] border border-white/10 relative z-10 shadow-2xl backdrop-blur-xl">
+    <div className="flex flex-col w-full h-full p-6 sm:p-8 bg-gradient-to-b from-slate-800/40 to-transparent rounded-3xl sm:rounded-[32px] border border-white/10 relative z-10 shadow-2xl backdrop-blur-xl">
       <div className="space-y-6 flex-1">
         <div className="flex items-center justify-between">
           <div className="w-12 h-12 bg-rose-500/10 rounded-2xl flex items-center justify-center text-rose-400 border border-rose-500/20 shadow-[0_0_15px_rgba(244,63,94,0.3)]">
@@ -68,7 +68,7 @@ export default function ProInsights({ latestAnalysis, userPlan }: Props) {
               <p className="text-[10px] font-bold text-white/50 mb-3 flex items-center gap-1.5">
                 <Zap className="w-3 h-3 text-amber-400" /> Vocal Guide
               </p>
-              <p className={`text-[11px] leading-relaxed font-medium whitespace-pre-wrap break-keep ${userPlan === 'PRO' ? 'text-white/80' : 'text-white/10 blur-[2px]'}`}>
+              <p className={`text-xs leading-relaxed font-medium whitespace-pre-wrap break-keep ${userPlan === 'PRO' ? 'text-white/80' : 'text-white/10 blur-[2px]'}`}>
                 {userPlan === 'PRO' ? (latestAnalysis?.proFeatures?.guide || 'Waiting for insights...') : 'Upgrade to Pro to unlock personalized vocal training guides and key recommendations.'}
               </p>
             </div>
