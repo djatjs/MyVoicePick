@@ -22,7 +22,6 @@ def load_target_songs_from_melon() -> list:
     """
     print("  🍈 멜론 장르별 차트에서 보컬 분석에 적합한 곡들을 불러오는 중...")
     
-    # [개선 1] 수집 선정 기준 개선: 실시간 Top100(아이돌 편중) 대신 보컬이 돋보이는 장르 위주 다중 수집
     # GN0100: 발라드, GN0400: R&B/Soul, GN0600: 록/메탈, GN0500: 인디음악
     genre_codes = ["GN0100", "GN0400", "GN0600", "GN0500"]
     
@@ -72,11 +71,41 @@ def main():
 
     try:
         engine = create_engine(db_url)
+        # MySQL 호환 규격 뼈대 생성 시도
+        with engine.begin() as conn:
+            conn.execute(text("""
+                CREATE TABLE IF NOT EXISTS songs (
+                    id INT AUTO_INCREMENT PRIMARY KEY,
+                    title VARCHAR(255),
+                    artist VARCHAR(255),
+                    album_cover_url TEXT,
+                    preview_url TEXT,
+                    pitch DOUBLE,
+                    mfcc_vector TEXT,
+                    UNIQUE KEY UNIQUE_SONG (title, artist)
+                )
+            """))
     except Exception as e:
-        print(f"🚨 DB 연결 실패: {e}")
-        sys.exit(1)
+        # SQLite 환경일 경우 가벼운 데이터 타입으로 테이블 자동 생성 보완
+        try:
+            with engine.begin() as conn:
+                conn.execute(text("""
+                    CREATE TABLE IF NOT EXISTS songs (
+                        id INTEGER PRIMARY KEY AUTOINCREMENT,
+                        title TEXT,
+                        artist TEXT,
+                        album_cover_url TEXT,
+                        preview_url TEXT,
+                        pitch REAL,
+                        mfcc_vector TEXT,
+                        UNIQUE(title, artist)
+                    )
+                """))
+        except Exception as inner_e:
+            print(f"🚨 DB 연결 및 테이블 초기화 실패: {inner_e}")
+            sys.exit(1)
 
-    # 2. 멜론 차트에서 자동 수집 (YouTube Music 대체)
+    # 2. 멜론 차트에서 자동 수집
     target_songs = load_target_songs_from_melon()
     
     if not target_songs:
@@ -93,6 +122,9 @@ def main():
     success_count = 0
     fail_count = 0
 
+    # DB 종류 감지 (SQLite 여부 판별 스위치)
+    is_sqlite = "sqlite" in db_url.lower()
+
     for idx, song in enumerate(target_songs):
         title = song["title"]
         artist = song["artist"]
@@ -102,7 +134,7 @@ def main():
         print(f"\n[{idx+1}/{len(target_songs)}] 확인 중: {title} - {artist}")
 
         try:
-            # [추가] 중복 체크: 이미 DB에 있는 곡은 처리를 건너뜁니다.
+            # 중복 체크
             check_query = text("SELECT id FROM songs WHERE title = :title AND artist = :artist")
             with engine.connect() as conn:
                 existing_song = conn.execute(check_query, {"title": title, "artist": artist}).fetchone()
@@ -114,7 +146,6 @@ def main():
 
             print(f"  🆕 신규 곡 발견! 수집을 시작합니다.")
             
-            # [개선 2] 유튜브 검색어 개선: 일반인의 커버 곡이나 라이브 영상 방지
             search_query = f"{artist} {title} Official Audio"
             temp_mp3_path = os.path.join(temp_dir, f"track_{idx}.mp3")
             specific_demucs_folder = os.path.join(demucs_out_dir, "htdemucs", f"track_{idx}")
@@ -153,24 +184,24 @@ def main():
             if not os.path.exists(temp_mp3_path):
                 raise Exception("yt-dlp 다운로드 또는 MP3 변환에 실패하여 파일을 찾을 수 없습니다.")
 
-            # [개선 1] 수집 속도 최적화: 곡의 1분 지점부터 45초만 추출 (가장 보컬이 확실한 구간)
+            # 4. 수집 속도 최적화: 곡의 1분 지점부터 45초만 추출
             print("  ⏱️ 전체 분리는 오래 걸리므로 45초 하이라이트 구간만 트리밍합니다...")
             trimmed_mp3_path = os.path.join(temp_dir, f"track_{idx}_trimmed.mp3")
             try:
                 trim_cmd = [
                     "ffmpeg", "-y", "-i", temp_mp3_path,
-                    "-ss", "60", "-t", "45", # 60초부터 45초간
+                    "-ss", "60", "-t", "45",
                     "-ac", "2", "-ar", "44100",
                     trimmed_mp3_path
                 ]
                 subprocess.run(trim_cmd, check=True, capture_output=True)
                 input_for_demucs = trimmed_mp3_path
-                print("  ✅ 트리밍 완료")
+                print("  Hex 완료")
             except Exception as e:
                 print(f"  ⚠️ 트리밍 실패(원본 사용): {e}")
                 input_for_demucs = temp_mp3_path
 
-            # 4. Demucs 보컬 분리
+            # 5. Demucs 보컬 분리
             print("  ✂️ 보컬 분리 중 (Demucs, 수 분이 소요될 수 있습니다)...")
             cmd = [sys.executable, "-m", "demucs.separate", "-n", "htdemucs", input_for_demucs, "-o", demucs_out_dir]
             process = subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
@@ -179,7 +210,6 @@ def main():
                 error_msg = process.stderr.decode('utf-8', errors='ignore')
                 raise Exception(f"Demucs 분리 실패: {error_msg}")
 
-            # 트리밍 적용 여부에 따라 파일명이 달라지므로 베이스 네임으로 경로 재계산
             base_name = os.path.splitext(os.path.basename(input_for_demucs))[0]
             specific_demucs_folder = os.path.join(demucs_out_dir, "htdemucs", base_name)
             vocal_path = os.path.join(specific_demucs_folder, "vocals.wav")
@@ -187,18 +217,16 @@ def main():
             if not os.path.exists(vocal_path):
                 raise Exception(f"보컬 결과 파일을 찾을 수 없습니다: {vocal_path}")
 
-            # 5. 특징 추출 (librosa)
+            # 6. 특징 추출 (librosa)
             print("  🎵 음향 특징(Pitch, MFCC) 추출 중...")
             y, sr = librosa.load(vocal_path, sr=22050, mono=True)
 
-            # [개선 2] 기준점 정확도 향상: 분석 서비스와 동일하게 노이즈(무음) 구간 필터링
             intervals = librosa.effects.split(y, top_db=30)
             if len(intervals) > 0:
                 y_voiced = np.concatenate([y[start:end] for start, end in intervals])
             else:
                 y_voiced = y
 
-            # 최적화를 위해 피치는 16kHz로 다운샘플링 후 pyin 수행
             y_voiced_16k = librosa.resample(y_voiced, orig_sr=sr, target_sr=16000)
             f0, _, _ = librosa.pyin(
                 y_voiced_16k,
@@ -214,13 +242,23 @@ def main():
             avg_mfcc = np.mean(mfcc, axis=1).tolist()
             mfcc_json = json.dumps(avg_mfcc)
 
-            # 6. DB 저장 (중복 체크 추가 권장)
+            # 7. DB 저장 (SQLite / MySQL 크로스 듀플리케이트 가드 반영)
             print(f"  💾 DB에 저장 중... (Pitch: {avg_pitch:.2f}Hz)")
-            insert_query = text("""
-                INSERT INTO songs (title, artist, album_cover_url, preview_url, pitch, mfcc_vector)
-                VALUES (:title, :artist, :album_cover_url, :preview_url, :pitch, :mfcc)
-                ON DUPLICATE KEY UPDATE pitch = VALUES(pitch), mfcc_vector = VALUES(mfcc_vector)
-            """)
+            
+            if is_sqlite:
+                insert_query = text("""
+                    INSERT INTO songs (title, artist, album_cover_url, preview_url, pitch, mfcc_vector)
+                    VALUES (:title, :artist, :album_cover_url, :preview_url, :pitch, :mfcc)
+                    ON CONFLICT(title, artist) DO UPDATE SET 
+                        pitch = EXCLUDED.pitch, 
+                        mfcc_vector = EXCLUDED.mfcc_vector
+                """)
+            else:
+                insert_query = text("""
+                    INSERT INTO songs (title, artist, album_cover_url, preview_url, pitch, mfcc_vector)
+                    VALUES (:title, :artist, :album_cover_url, :preview_url, :pitch, :mfcc)
+                    ON DUPLICATE KEY UPDATE pitch = VALUES(pitch), mfcc_vector = VALUES(mfcc_vector)
+                """)
 
             with engine.begin() as conn:
                 conn.execute(insert_query, {
@@ -240,12 +278,11 @@ def main():
             fail_count += 1
 
         finally:
-            # 7. 임시 파일 정리
+            # 8. 임시 파일 정리
             print("  🧹 임시 파일 정리 중...")
             if temp_mp3_path and os.path.exists(temp_mp3_path):
                 os.remove(temp_mp3_path)
             
-            # [수정] 트리밍된 파일(trimmed_mp3_path)도 함께 삭제하여 용량 누수 방지
             if 'trimmed_mp3_path' in locals() and os.path.exists(trimmed_mp3_path):
                 os.remove(trimmed_mp3_path)
  
