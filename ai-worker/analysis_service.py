@@ -82,15 +82,54 @@ class AnalysisService:
 
     @staticmethod
     def cosine_to_score(cosine_sim: float) -> int:
+        """코사인 유사도(-1~1)를 0~100%로 그대로 옮긴다. 하한·상한 보정 없이 차이가 그대로 보이게 한다."""
+        return int(max(0, min(100, round((cosine_sim + 1) / 2 * 100))))
+
+    @staticmethod
+    def semitone_gap(user_pitch: float, song_pitch: float) -> float:
+        """사용자와 곡의 평균 음높이 차이(반음). 8반음 넘게 벌어지면 한 옥타브 올리거나 내려 부르는 것으로 본다(키 추천과 같은 기준)."""
+        if user_pitch <= 0 or song_pitch <= 0:
+            return 12.0
+        gap = 12 * math.log2(user_pitch / song_pitch)
+        if gap < -8:
+            gap += 12
+        elif gap > 8:
+            gap -= 12
+        return gap
+
+    @staticmethod
+    def rank_songs(user_mfcc: np.ndarray, user_pitch: float, songs: list) -> list:
         """
-        코사인 유사도(-1~1)를 사용자 친화적인 표시 점수(50~95%)로 변환합니다.
-        - cosine 1.0  -> 95%
-        - cosine 0.9  -> ~85%
-        - cosine 0.5  -> ~60%
-        - cosine < 0  -> 50% (floor)
+        songs: [{"id", "pitch", "mfcc"}] 전체 곡. 음색 70% + 음역 30%로 점수를 매겨 높은 순으로 돌려준다.
+
+        평균 MFCC를 그대로 비교하면 c0(음량)가 벡터 방향을 거의 정해 모든 곡의 코사인이 0.9 이상으로 붙는다.
+        c0를 빼고, 곡 전체의 평균·표준편차로 계수별 표준화한 뒤 비교해야 곡끼리 차이가 드러난다.
         """
-        score = 60 + (cosine_sim * 35)
-        return int(max(50, min(95, round(score))))
+        X = np.array([s["mfcc"] for s in songs], dtype=np.float64)[:, 1:]
+        mean = X.mean(axis=0)
+        std = X.std(axis=0)
+        std[std == 0] = 1.0
+        Z = (X - mean) / std
+        q = (np.asarray(user_mfcc, dtype=np.float64)[1:] - mean) / std
+
+        z_norms = np.linalg.norm(Z, axis=1)
+        z_norms[z_norms == 0] = 1.0
+        q_norm = np.linalg.norm(q) or 1.0
+        cosines = (Z @ q) / (z_norms * q_norm)
+
+        ranked = []
+        for song, cosine in zip(songs, cosines):
+            gap = AnalysisService.semitone_gap(user_pitch, song["pitch"] or 0.0)
+            timbre_score = (float(cosine) + 1) / 2
+            pitch_score = max(0.0, 1.0 - abs(gap) / 12)
+            ranked.append({
+                "id": song["id"],
+                "pitch": song["pitch"] or 0.0,
+                "cosine": float(cosine),
+                "score": timbre_score * 0.7 + pitch_score * 0.3,
+            })
+        ranked.sort(key=lambda c: c["score"], reverse=True)
+        return ranked
 
     @staticmethod
     def generate_recommend_reason(tags: list, artist: str, user_pitch: float, song_pitch: float, vocal_stats: dict) -> str:
@@ -145,7 +184,6 @@ class AnalysisService:
         PRO 유저를 위한 보컬 성장 솔루션 데이터를 생성합니다.
         """
         import math
-        import random
 
         # 1. Key 추천 로직 고도화 (남녀 옥타브 차이 및 반음계 정밀 계산)
         if best_song_pitch > 0 and user_pitch > 0:
@@ -208,23 +246,9 @@ class AnalysisService:
         else:
             guide = "보컬의 스탯이 특정 성향에 치우치지 않고 비교적 평이하게 분포되어 있습니다. 아직 자신만의 독특한 무기가 돋보이지 않는 상태이므로, 다양한 곡을 카피해 부르며 내가 가장 매력적으로 소리 낼 수 있는 음역대와 톤을 발굴해 보세요."
 
-        # 3. 찰떡 매칭 3곡 플레이리스트 (Faiss 검색 기반 상위 랭커 활용)
-        import copy
+        # 3. 찰떡 매칭 플레이리스트 (종합 점수 상위 곡). 곡이 모자라면 있는 만큼만 보여준다.
         pool = [s for s in similar_songs if s.get("title") != matched_song_title]
-        
-        # 만약 Faiss에서 넘어온 유사 곡이 충분하지 않다면 안전장치(Fallback)
-        if len(pool) >= 3:
-            selected_songs = pool[:3]
-        else:
-            selected_songs = pool
-
-        playlist = [{"title": s.get("title"), "artist": s.get("artist")} for s in selected_songs]
-        
-        # 땜빵 로직: 곡이 부족한 경우
-        idx = 1
-        while len(playlist) < 3:
-            playlist.append({"title": f"추천 명곡 {idx}", "artist": "Various Artists"})
-            idx += 1
+        playlist = [{"title": s.get("title"), "artist": s.get("artist")} for s in pool[:3]]
 
         return {
             "key": key_recommend,
@@ -507,125 +531,44 @@ class AnalysisService:
                 # 3) 목소리 프로파일링 태그 생성
                 voice_tags = AnalysisService.generate_voice_tags(avg_pitch, avg_mfcc)
                 
-                # 4. DB 연동: 곡(Song) 데이터 로드 (Pitch 1차 필터링 적용)
-                logger.info("[AnalysisService] DB에서 곡 데이터를 조회합니다. (Pitch 1차 필터링)")
+                # 4. DB 연동: 전체 곡을 불러와 음색·음역 종합 점수로 순위를 매깁니다.
+                # 표준화 기준(곡 전체의 평균·표준편차)이 흔들리지 않도록 음높이로 미리 거르지 않습니다.
+                # shortcut: 요청마다 전체 곡을 메모리에 올려 전수 비교함. 곡이 수만 개를 넘어 느려지면 표준화 벡터를 캐시하고 ANN 인덱스로 바꿀 것
                 db = SessionLocal()
                 try:
-                    # [성능 최적화 1단계] 내 음역대(Pitch) 기준 +- 50Hz 범위 내의 곡만 1차 필터링하여 DB에서 가져옵니다. (O(N) 탐색 모수 대폭 감소)
-                    min_pitch = avg_pitch - 50.0
-                    max_pitch = avg_pitch + 50.0
-                    songs = db.query(Song).filter(Song.pitch >= min_pitch, Song.pitch <= max_pitch).all()
-                    
-                    # 만약 필터링된 곡이 없다면 전체 곡을 가져옵니다 (Fallback)
-                    if not songs:
-                        logger.warning("[AnalysisService] 필터링된 곡이 없어 전체 곡을 조회합니다.")
-                        songs = db.query(Song).all()
+                    songs = []
+                    for song in db.query(Song).filter(Song.mfcc_vector.isnot(None)).all():
+                        try:
+                            mfcc = json.loads(song.mfcc_vector)
+                        except (ValueError, TypeError):
+                            continue
+                        if len(mfcc) == len(avg_mfcc):
+                            songs.append({"id": song.id, "pitch": song.pitch, "mfcc": mfcc,
+                                          "title": song.title, "artist": song.artist})
 
                     if not songs:
                         logger.warning("[AnalysisService] DB에 곡 데이터가 하나도 없습니다. 매칭을 건너뜁니다.")
                         matched_song_id = None
                     else:
-                        # =========================================================
-                        # 5. 종합 가중치 매칭 + Faiss 고속 벡터 검색 [개선]
-                        # - [성능 최적화 2단계] Faiss 라이브러리를 도입하여 MFCC 벡터 유사도를 O(log N) 속도로 고속 검색합니다.
-                        # - 추출된 Top K 개의 곡에 대해서만 Pitch 가중치를 합산하여 최종 1곡을 선정합니다.
-                        # =========================================================
-                        logger.info(f"[AnalysisService] Faiss를 활용한 고속 벡터 검색 및 가중치 합산 시작 (후보 곡 수: {len(songs)})")
-
-                        best_song_id = None
-                        best_score = -1.0
-                        best_cosine = 0.0
-                        best_song_pitch = 0.0
-
-                        # Faiss 인덱스에 넣을 데이터 준비
-                        import faiss
-                        
-                        song_ids = []
-                        song_pitches = []
-                        song_mfccs = []
-                        
-                        for song in songs:
-                            try:
-                                vec = np.array(json.loads(song.mfcc_vector), dtype=np.float32)
-                                song_mfccs.append(vec)
-                                song_ids.append(song.id)
-                                song_pitches.append(song.pitch if song.pitch is not None else 0.0)
-                            except Exception:
-                                continue
-
-                        if len(song_mfccs) > 0:
-                            # 데이터 변환 및 정규화 (코사인 유사도는 L2 정규화 후 내적(Inner Product)과 동일)
-                            song_mfccs_np = np.array(song_mfccs)
-                            faiss.normalize_L2(song_mfccs_np)
-                            
-                            # Faiss 내적(Inner Product) 인덱스 생성
-                            dimension = 20 # MFCC 차원 수
-                            index = faiss.IndexFlatIP(dimension)
-                            index.add(song_mfccs_np)
-                            
-                            # 쿼리 벡터 준비 및 정규화
-                            query_vec = np.array([avg_mfcc], dtype=np.float32)
-                            faiss.normalize_L2(query_vec)
-                            
-                            # 검색 (Top 10 추출 후 최종 가중치 계산)
-                            k = min(10, len(song_ids))
-                            distances, indices = index.search(query_vec, k)
-                            
-                            candidates = []
-                            for i in range(k):
-                                idx = indices[0][i]
-                                if idx == -1: continue # 결과 없음
-                                
-                                cosine = float(distances[0][i]) # Faiss 내적 결과가 곧 코사인 유사도
-                                current_song_id = song_ids[idx]
-                                current_pitch = song_pitches[idx]
-                                
-                                # 1) 코사인 유사도를 0 ~ 1.0 범위로 정규화 (음색 점수)
-                                mfcc_score = max(0.0, (cosine + 1) / 2.0)
-                                
-                                # 2) Pitch 차이를 바탕으로 음역대 점수 산출 (0 ~ 1.0)
-                                pitch_diff = abs(avg_pitch - current_pitch)
-                                pitch_score = max(0.0, 1.0 - (pitch_diff / 100.0))
-                                
-                                # 3) 가중치 합산 (음색 70%, 음역대 30%)
-                                total_score = (mfcc_score * 0.7) + (pitch_score * 0.3)
-                                
-                                candidates.append({
-                                    "id": current_song_id,
-                                    "pitch": current_pitch,
-                                    "cosine": cosine,
-                                    "score": total_score
-                                })
-
-                            # 점수 내림차순 정렬
-                            candidates.sort(key=lambda x: x["score"], reverse=True)
-
-                            if candidates:
-                                best = candidates[0]
-                                best_score = best["score"]
-                                best_cosine = best["cosine"]
-                                best_song_id = best["id"]
-                                best_song_pitch = best["pitch"]
-                                
-                                # 상위 2~4위 곡의 ID 저장 (찰떡 매칭용 플레이리스트 후보)
-                                top_similar_ids = [c["id"] for c in candidates[1:4]]
-
-                        matched_song_id = best_song_id
+                        logger.info(f"[AnalysisService] 음색·음역 종합 점수 계산 시작 (후보 곡 수: {len(songs)})")
+                        candidates = AnalysisService.rank_songs(avg_mfcc, avg_pitch, songs)
+                        best = candidates[0]
+                        best_score = best["score"]
+                        best_cosine = best["cosine"]
+                        best_song_pitch = best["pitch"]
+                        matched_song_id = best["id"]
                         logger.info(f"[AnalysisService] 최종 매칭 완료! Song ID: {matched_song_id} | 최고 종합 점수: {best_score:.4f} (코사인 {best_cosine:.4f})")
 
-                        # 세션이 닫히기 전에 아티스트 정보를 미리 조회합니다.
-                        matched_song = db.query(Song).filter(Song.id == matched_song_id).first() if matched_song_id else None
-                        matched_artist = matched_song.artist if matched_song else "알 수 없는 아티스트"
-                        matched_song_title = matched_song.title if matched_song else "알 수 없는 곡"
+                        by_id = {s["id"]: s for s in songs}
+                        matched_artist = by_id[matched_song_id]["artist"] or "알 수 없는 아티스트"
+                        matched_song_title = by_id[matched_song_id]["title"] or "알 수 없는 곡"
 
-                        # PRO 플레이리스트 추천을 위한 데이터 (Faiss 검색 결과 2~4위 곡)
-                        similar_songs_data = []
-                        if 'top_similar_ids' in locals() and top_similar_ids:
-                            sim_songs = db.query(Song).filter(Song.id.in_(top_similar_ids)).all()
-                            similar_songs_data = [{"title": s.title, "artist": s.artist} for s in sim_songs if s.title and s.artist]
-                        else:
-                            # 만약 Faiss 검색 결과가 적다면 전체 곡 중 일부로 대체(Fallback)
-                            similar_songs_data = [{"title": s.title, "artist": s.artist} for s in songs if s.title and s.artist]
+                        # PRO 플레이리스트: 종합 점수 2~4위 곡 (순위 순서 유지)
+                        similar_songs_data = [
+                            {"title": by_id[c["id"]]["title"], "artist": by_id[c["id"]]["artist"]}
+                            for c in candidates[1:4]
+                            if by_id[c["id"]]["title"] and by_id[c["id"]]["artist"]
+                        ]
 
                 finally:
                     # DB 세션을 반드시 반환하여 커넥션 풀을 관리합니다.

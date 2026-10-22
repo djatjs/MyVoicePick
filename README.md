@@ -20,7 +20,7 @@ graph LR
     API -->|음성 파일 업로드| S3[("AWS S3")]
     API -->|작업 저장 PENDING| DB[("MySQL")]
     API -->|커밋 후 LPUSH| Redis[("Redis List<br/>voice_analysis_queue")]
-    Redis -->|BRPOP| Worker["Python 워커<br/>Demucs · librosa · FAISS"]
+    Redis -->|BRPOP| Worker["Python 워커<br/>Demucs · librosa"]
     Worker -->|S3 키로 다운로드| S3
     Worker -->|상태·결과 저장| DB
     API -->|상태·결과 조회| DB
@@ -36,7 +36,7 @@ graph LR
 | 영역 | 기술 |
 | --- | --- |
 | API 서버 | Java 17, Spring Boot 4.0, Spring Data JPA, Spring Security (OAuth2 로그인, JWT) |
-| 분석 워커 | Python, Demucs(htdemucs), librosa, FAISS, SQLAlchemy |
+| 분석 워커 | Python, Demucs(htdemucs), librosa, NumPy, SQLAlchemy |
 | 데이터 | MySQL, Redis (작업 큐) |
 | 인프라·연동 | AWS S3, 토스페이먼츠 |
 | 클라이언트 | Next.js, TypeScript |
