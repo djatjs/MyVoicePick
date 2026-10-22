@@ -1,10 +1,10 @@
 .home-page { background-image: none; }
-.home-page .mvp-container { max-width: 1200px; }
+.home-page .mvp-container { max-width: 1440px; }
 .home-page main { overflow: clip; }
 .home-page a:focus-visible, .home-page button:focus-visible { outline: 2px solid #c4b5fd; outline-offset: 6px; }
 .home-skip-link { position: fixed; top: 12px; left: 12px; padding: 12px 20px; background: #f8fafc; color: #0f172a; z-index: 100; transform: translateY(-160%); }
 .home-skip-link:focus { transform: translateY(0); }
-.home-hero { display: grid; grid-template-columns: 1.05fr 1fr; gap: 64px; align-items: center; padding-top: 88px; padding-bottom: 100px; }
+.home-hero { display: grid; grid-template-columns: 1.05fr 1fr; gap: 64px; align-items: center; padding-top: 56px; padding-bottom: 56px; }
 .home-intro { display: flex; align-items: center; gap: 9px; color: #b5b9d8; font-size: 14px; font-weight: 500; margin-bottom: 24px; }
 .home-hero h1 { font-size: clamp(48px, 5.2vw, 72px); font-weight: 750; letter-spacing: -.055em; line-height: 1.18; margin: 0 0 28px; }
 .home-description { color: #aab7ca; font-size: 18px; line-height: 1.85; word-break: keep-all; }
@@ -37,7 +37,7 @@
 .home-track .home-result-label { margin-bottom: 3px; font-size: 10px; }
 .home-track-tag { margin-left: auto; color: #aab7ca; font-size: 11px; }
 .home-example-note { padding: 0 26px 22px; color: #aab7ca; font-size: 11px; line-height: 1.7; word-break: keep-all; }
-.home-section { padding-top: 96px; padding-bottom: 96px; scroll-margin-top: 80px; }
+.home-section { padding-top: 72px; padding-bottom: 72px; scroll-margin-top: 80px; }
 .home-section-heading h2, .home-pricing h2, .home-closing h2 { font-size: clamp(30px, 3.4vw, 43px); line-height: 1.4; font-weight: 650; letter-spacing: -.045em; word-break: keep-all; }
 .home-features { display: grid; grid-template-columns: repeat(3, 1fr); gap: 52px; margin-top: 55px; }
 .home-features article { border-top: 1px solid #ffffff26; padding-top: 26px; }
@@ -57,6 +57,10 @@
 .home-closing { display: flex; justify-content: space-between; align-items: center; gap: 32px; padding-top: 64px; padding-bottom: 80px; border-top: 1px solid #ffffff1a; }
 .home-closing .home-intro { margin-bottom: 16px; }
 .home-page footer { padding-top: 50px; padding-bottom: 32px; }
+@media (min-width: 1280px) {
+  .home-hero h1 { font-size: 80px; }
+  .home-features p { max-width: 38ch; }
+}
 @media (max-width: 1023px) {
   .home-hero { gap: 32px; padding-top: 64px; padding-bottom: 64px; }
   .home-hero h1 { font-size: 54px; }
