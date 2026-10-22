@@ -1,100 +1,35 @@
+import Link from 'next/link';
 import '../../styles/mvp-design.css';
+import '../../styles/workspace.css';
+import '../../styles/information.css';
 import { MvpNav } from '../../components/mvp/MvpNav';
 import { MvpFooter } from '../../components/mvp/MvpFooter';
-import { Code2, Terminal, Cpu, Globe, ArrowRight, Lock } from 'lucide-react';
-import { MvpButton } from '../../components/mvp/MvpButton';
 
-export default function ApiDocsPage() {
+export default function Page() {
   return (
-    <main className="mvp-canvas min-h-screen flex flex-col">
+    <div className="mvp-canvas workspace-page min-h-screen flex flex-col">
       <MvpNav />
-      
-      <div className="flex-1 py-14 md:py-24">
-        <div className="mvp-container">
-          {/* Header */}
-          <div className="text-center max-w-5xl mx-auto mb-12 md:mb-20">
-            <div className="inline-flex items-center gap-2 px-3 py-1 bg-indigo-500/10 rounded-full border border-indigo-500/20 mb-6">
-               <Lock className="w-3 h-3 text-indigo-400" />
-               <span className="text-[10px] font-black uppercase tracking-widest text-indigo-300">Private Beta Access</span>
-            </div>
-            <span className="mvp-gradient-text text-xs font-black uppercase tracking-[0.3em] mb-4 block">Developer Hub</span>
-            <h1 className="text-4xl md:text-6xl mvp-display mb-4 md:mb-6">Vocal Engine API.</h1>
-            <p className="text-base md:text-xl text-[var(--mvp-text-muted)] break-keep leading-relaxed md:whitespace-nowrap">
-              MyVoicePick의 강력한 AI 보컬 분석 엔진을 당신의 서비스에 통합하세요.
-            </p>
-          </div>
+      <main className="workspace-container info-page">
+        <header className="workspace-heading"><p className="workspace-kicker">개발자를 위한 API 안내</p><h1>분석 요청부터<br />결과 조회까지.</h1><p className="workspace-description">MyVoicePick 웹 서비스가 사용하는 분석 API의 기본 흐름입니다.</p></header>
+        <aside className="info-callout"><h2>로그인한 사용자의 인증이 필요합니다</h2><p>아래는 웹 서비스용 API 안내입니다. 별도 파트너 API나 API 키 발급은 제공하지 않습니다. 인증 토큰은 외부에 공유하거나 공개 코드에 넣지 마세요.</p></aside>
+        <section className="info-api-section"><h2>분석은 비동기로 진행됩니다</h2><p>파일을 전송하면 작업 ID를 받고, 해당 ID로 상태를 조회합니다. 완료된 응답에서 추천곡과 분석 지표를 확인할 수 있습니다.</p><div className="info-table-wrap"><table><caption className="sr-only">분석 API 엔드포인트</caption><thead><tr><th scope="col">메서드</th><th scope="col">경로</th><th scope="col">역할</th></tr></thead><tbody>
+          <tr><td>POST</td><td><code>/api/v1/analyze</code></td><td>파일 전송 · 작업 접수</td></tr>
+          <tr><td>GET</td><td><code>/api/v1/analyze/&#123;taskId&#125;/status</code></td><td>작업 상태와 결과</td></tr>
+          <tr><td>GET</td><td><code>/api/v1/analyze/my-latest</code></td><td>가장 최근 작업</td></tr>
+          <tr><td>GET</td><td><code>/api/v1/analyze/my-history</code></td><td>내 분석 기록</td></tr>
+          <tr><td>DELETE</td><td><code>/api/v1/analyze/&#123;taskId&#125;</code></td><td>내 기록 삭제</td></tr>
+        </tbody></table></div></section>
+        <section className="info-api-section"><h2>파일 전송</h2><p><code>Authorization: Bearer &lt;ACCESS_TOKEN&gt;</code> 헤더와 함께 <code>multipart/form-data</code>의 <code>file</code> 필드로 음성을 전송합니다. MP3·WAV·M4A, 50MB 미만 파일을 준비하세요.</p><pre><code>{`POST /api/v1/analyze
+Authorization: Bearer <ACCESS_TOKEN>
+Content-Type: multipart/form-data; boundary=...
 
-          {/* API Categories */}
-          <div className="grid md:grid-cols-3 gap-5 md:gap-8 mb-12 md:mb-24">
-             <div className="mvp-glass-card p-6 md:p-8 border-white/5 group hover:border-indigo-500/30 transition-all">
-                <div className="w-12 h-12 bg-white/5 rounded-xl flex items-center justify-center mb-6 group-hover:scale-110 transition-transform">
-                   <Cpu className="text-indigo-400" />
-                </div>
-                <h3 className="text-xl font-bold mb-3">Vocal Separation</h3>
-                <p className="text-sm text-[var(--mvp-text-muted)] leading-relaxed break-keep">
-                   혼합된 오디오 트랙에서 보컬만 깨끗하게 추출하는 고성능 음원 분리 API입니다.
-                </p>
-             </div>
-             <div className="mvp-glass-card p-6 md:p-8 border-white/5 group hover:border-violet-500/30 transition-all">
-                <div className="w-12 h-12 bg-white/5 rounded-xl flex items-center justify-center mb-6 group-hover:scale-110 transition-transform">
-                   <Terminal className="text-violet-400" />
-                </div>
-                <h3 className="text-xl font-bold mb-3">DNA Extraction</h3>
-                <p className="text-sm text-[var(--mvp-text-muted)] leading-relaxed break-keep">
-                   음역대, 배음, 공명 등 수백 가지 보컬 특성을 데이터(JSON) 형태로 반환합니다.
-                </p>
-             </div>
-             <div className="mvp-glass-card p-6 md:p-8 border-white/5 group hover:border-pink-500/30 transition-all">
-                <div className="w-12 h-12 bg-white/5 rounded-xl flex items-center justify-center mb-6 group-hover:scale-110 transition-transform">
-                   <Globe className="text-pink-400" />
-                </div>
-                <h3 className="text-xl font-bold mb-3">Artist Matching</h3>
-                <p className="text-sm text-[var(--mvp-text-muted)] leading-relaxed break-keep">
-                   자체 데이터베이스와 대조하여 가장 유사한 아티스트 페르소나를 매칭합니다.
-                </p>
-             </div>
-          </div>
-
-          {/* Code Preview Placeholder */}
-          <div className="mvp-glass-card p-2 md:p-4 mb-16 md:mb-24 overflow-hidden border-white/5">
-             <div className="bg-[#0f172a] rounded-lg p-4 md:p-8 font-mono text-xs md:text-sm overflow-x-auto">
-                <div className="flex items-center gap-2 mb-4 md:mb-6 border-b border-white/5 pb-4">
-                   <div className="w-3 h-3 rounded-full bg-red-500/50"></div>
-                   <div className="w-3 h-3 rounded-full bg-yellow-500/50"></div>
-                   <div className="w-3 h-3 rounded-full bg-green-500/50"></div>
-                   <span className="ml-2 md:ml-4 text-white/20 text-[10px] md:text-xs uppercase tracking-widest truncate">v1/analyze_vocal.json</span>
-                </div>
-                <pre className="text-indigo-300">
-{`{
-  "status": "success",
-  "vocal_dna": {
-    "pitch_range": "E2-G5",
-    "harmonics_complexity": 0.89,
-    "resonance_score": 0.94,
-    "matching_artist": "Jannabi",
-    "similarity": 0.982
-  },
-  "processing_time": "1.24s"
-}`}
-                </pre>
-             </div>
-          </div>
-
-          {/* CTA / Waitlist */}
-          <div className="max-w-2xl mx-auto text-center">
-             <Code2 className="w-12 h-12 md:w-16 md:h-16 text-white/10 mx-auto mb-6 md:mb-8" />
-             <h2 className="text-2xl md:text-3xl font-black mb-4 md:mb-6 break-keep">전문 개발자를 위한 얼리 액세스</h2>
-             <p className="text-sm md:text-base text-[var(--mvp-text-muted)] mb-8 md:mb-10 break-keep">
-                현재 MyVoicePick API는 선별된 파트너사에게만 비공개 베타로 제공되고 있습니다. 
-                귀사의 서비스에 보컬 분석 기술을 도입하고 싶다면 지금 신청하세요.
-             </p>
-             <MvpButton variant="primary" size="lg" className="px-12">베타 신청하기</MvpButton>
-          </div>
-
-        </div>
-      </div>
-
+file: <음성 파일>`}</code></pre><p>접수 성공 시 <code>202 Accepted</code>와 작업 ID가 반환됩니다. 다음은 응답 형식 예시입니다.</p><pre><code>{`{
+  "taskId": "example-task-id"
+}`}</code></pre></section>
+        <section className="info-api-section"><h2>상태 확인과 결과 처리</h2><dl className="info-status-list"><div><dt>PENDING</dt><dd>분석 대기</dd></div><div><dt>PROCESSING</dt><dd>음성 처리 중</dd></div><div><dt>COMPLETED</dt><dd>분석 완료</dd></div><div><dt>FAILED</dt><dd>분석 실패</dd></div></dl><p>완료 응답에는 <code>matchedArtist</code>, <code>matchedSongTitle</code>, <code>similarityScore</code>, <code>pitchHz</code> 등의 필드가 포함됩니다. 제공되지 않는 필드는 비어 있을 수 있습니다.</p><p>인증이 없으면 401, 진행 중인 작업이 있어 새 요청이 제한되면 429가 반환됩니다. 다른 계정의 작업은 조회할 수 없습니다.</p></section>
+        <div className="info-closing"><p>내 목소리에 어울리는 다음 곡을 찾아보세요.</p><Link href="/analyze" className="workspace-primary">내 목소리 분석하기</Link></div>
+      </main>
       <MvpFooter />
-    </main>
+    </div>
   );
 }

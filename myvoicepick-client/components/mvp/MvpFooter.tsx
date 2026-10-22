@@ -1,51 +1,14 @@
-import React from 'react';
 import Link from 'next/link';
 
-export const MvpFooter: React.FC = () => {
+export function MvpFooter() {
   return (
-    <footer className="bg-[var(--mvp-bg)] pt-14 md:pt-[100px] pb-10 md:pb-[60px] border-t border-white/5">
-      <div className="mvp-container grid grid-cols-2 md:grid-cols-4 gap-x-6 gap-y-10 md:gap-12">
-        <div className="col-span-2 md:col-span-1">
-          <div className="flex items-center gap-2 mb-4 md:mb-6">
-            <div className="w-8 h-8 bg-gradient-to-tr from-[var(--mvp-primary)] to-[var(--mvp-secondary)] rounded-lg flex items-center justify-center">
-              <svg viewBox="0 0 24 24" className="w-5 h-5 text-white fill-current">
-                <path d="M12 3v10.55c-.59-.34-1.27-.55-2-.55-2.21 0-4 1.79-4 4s1.79 4 4 4 4-1.79 4-4V7h4V3h-6z"/>
-              </svg>
-            </div>
-            <span className="text-xl font-bold mvp-title">MyVoicePick</span>
-          </div>
-          <p className="text-sm text-[var(--mvp-text-muted)] max-w-xs">
-            Advanced Vocal Intelligence for the next generation of artists and producers.
-          </p>
-        </div>
-        <div>
-          <h4 className="font-bold mb-4 md:mb-6">Product</h4>
-          <ul className="space-y-4 text-sm text-[var(--mvp-text-muted)]">
-            <li className="hover:text-white cursor-pointer"><Link href="/analyze">Analyze</Link></li>
-            <li className="hover:text-white cursor-pointer"><Link href="/features">Features</Link></li>
-            <li className="hover:text-white cursor-pointer"><Link href="/features#artists">Artist Lab</Link></li>
-          </ul>
-        </div>
-        <div>
-          <h4 className="font-bold mb-4 md:mb-6">Resources</h4>
-          <ul className="space-y-4 text-sm text-[var(--mvp-text-muted)]">
-            <li className="hover:text-white"><Link href="#">Discord Community</Link></li>
-            <li className="hover:text-white"><Link href="/guide">Vocal Guide</Link></li>
-            <li className="hover:text-white"><Link href="/api-docs">API Docs</Link></li>
-          </ul>
-        </div>
-        <div>
-          <h4 className="font-bold mb-4 md:mb-6">Legal</h4>
-          <ul className="space-y-4 text-sm text-[var(--mvp-text-muted)]">
-            <li className="hover:text-white"><Link href="#">Privacy Policy</Link></li>
-            <li className="hover:text-white"><Link href="#">Terms of Service</Link></li>
-            <li className="hover:text-white"><Link href="#">Refund Policy</Link></li>
-          </ul>
-        </div>
+    <footer className="border-t border-white/5 py-10 bg-[var(--mvp-bg)]">
+      <div className="mvp-container grid grid-cols-2 md:grid-cols-4 gap-8 text-sm">
+        <div className="col-span-2"><Link href="/" className="text-xl font-bold mvp-title">MyVoicePick</Link><p className="text-[var(--mvp-text-muted)] mt-3 leading-relaxed">내 목소리로 찾는 새로운 곡.<br />나와 닮은 가수부터 다음에 부를 노래까지.</p></div>
+        <nav aria-label="서비스 바로가기"><h2 className="font-semibold mb-4">서비스</h2><ul className="space-y-3 text-[var(--mvp-text-muted)]"><li><Link href="/analyze">목소리 분석</Link></li><li><Link href="/mypage">나의 보컬 기록</Link></li><li><Link href="/pricing">요금제 비교</Link></li></ul></nav>
+        <nav aria-label="도움말 바로가기"><h2 className="font-semibold mb-4">알아보기</h2><ul className="space-y-3 text-[var(--mvp-text-muted)]"><li><Link href="/features">분석 소개</Link></li><li><Link href="/guide">이용 가이드</Link></li><li><Link href="/api-docs">API 안내</Link></li></ul></nav>
       </div>
-      <div className="mvp-container mt-12 md:mt-[80px] pt-8 border-t border-white/5 flex flex-col md:flex-row justify-between items-center gap-4 text-xs text-[var(--mvp-text-muted)]">
-        <span>&copy; 2026 MyVoicePick. All rights reserved.</span>
-      </div>
+      <div className="mvp-container mt-8 pt-6 border-t border-white/5 text-xs text-[var(--mvp-text-muted)]">© 2026 MyVoicePick</div>
     </footer>
   );
-};
+}

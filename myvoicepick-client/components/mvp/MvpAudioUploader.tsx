@@ -5,7 +5,7 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { UploadCloud, Loader2, AlertCircle } from 'lucide-react';
 import { AnalysisResult, type MatchResult } from './AnalysisResult';
-import { verifyAnalysisSession } from '../../lib/analysis-session';
+import { verifyAnalysisSession, setLoginToken } from '../../lib/analysis-session';
 import { TossPaymentModal } from './TossPaymentModal';
 
 type UploadState = 'idle' | 'dragging' | 'uploading' | 'processing' | 'success' | 'error';
@@ -30,7 +30,7 @@ export default function MvpAudioUploader() {
       const status = await verifyAnalysisSession(token);
       if (cancelled) return;
       if (status === 'anonymous' && localStorage.getItem('accessToken') === token) {
-        localStorage.removeItem('accessToken');
+        setLoginToken(null);
       }
       setSession(status);
     }

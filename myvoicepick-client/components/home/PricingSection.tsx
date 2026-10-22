@@ -1,5 +1,7 @@
 "use client";
 
+import { setLoginToken } from '../../lib/analysis-session';
+
 import { useState } from 'react';
 import Link from 'next/link';
 import { Check } from 'lucide-react';
@@ -23,7 +25,7 @@ export function PricingSection() {
     try {
       const response = await fetch('/api/v1/users/me', { headers: { Authorization: `Bearer ${token}` } });
       if (response.status === 401) {
-        localStorage.removeItem('accessToken');
+        setLoginToken(null);
         sessionStorage.setItem('loginReturnTo', '/pricing');
         window.location.href = '/login';
         return;

@@ -20,3 +20,37 @@ assert.equal(loginDestination('https://example.com'), '/mypage');
 assert.equal(loginDestination('//example.com'), '/mypage');
 assert.equal(loginDestination(null), '/mypage');
 console.log('Session verification and safe login return checks passed.');
+
+const { paymentConfirmation } = load('../lib/payment-confirmation.ts');
+assert.deepEqual(paymentConfirmation('test-key', 'test-order', '100', 'PRO'), { paymentKey: 'test-key', orderId: 'test-order', amount: 100, plan: 'PRO' });
+for (const amount of [null, '', 'NaN', 'Infinity', '-1', '0', '1.5']) {
+  assert.equal(paymentConfirmation('test-key', 'test-order', amount, 'PRO'), null);
+}
+assert.equal(paymentConfirmation(null, 'test-order', '100', 'PRO'), null);
+assert.equal(paymentConfirmation('test-key', 'test-order', '100', 'OTHER'), null);
+console.log('Payment callback validation checks passed.');
+
+const { subscribeToLogin, hasLoginToken, setLoginToken } = load('../lib/analysis-session.ts');
+const events = new EventTarget();
+globalThis.window = events;
+let savedToken = null;
+globalThis.localStorage = { getItem: () => savedToken, setItem: (_key, value) => { savedToken = value; }, removeItem: () => { savedToken = null; } };
+assert.equal(hasLoginToken(), false);
+savedToken = 'test-token';
+assert.equal(hasLoginToken(), true);
+let changes = 0;
+const unsubscribe = subscribeToLogin(() => changes++);
+events.dispatchEvent(new Event('storage'));
+assert.equal(changes, 1);
+setLoginToken(null);
+assert.equal(hasLoginToken(), false);
+assert.equal(changes, 2);
+setLoginToken('new-token');
+assert.equal(hasLoginToken(), true);
+assert.equal(changes, 3);
+unsubscribe();
+events.dispatchEvent(new Event('storage'));
+assert.equal(changes, 3);
+delete globalThis.window;
+delete globalThis.localStorage;
+console.log('Login subscription and cleanup checks passed.');

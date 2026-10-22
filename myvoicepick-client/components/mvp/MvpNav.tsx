@@ -1,10 +1,11 @@
 'use client';
 
-import React, { useEffect, useState } from 'react';
+import React, { useState, useSyncExternalStore } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { Menu, X } from 'lucide-react';
 import { MvpButton } from './MvpButton';
+import { hasLoginToken, subscribeToLogin, setLoginToken } from '../../lib/analysis-session';
 
 const NAV_LINKS = [
   { href: '/#features', label: '분석 소개' },
@@ -14,20 +15,13 @@ const NAV_LINKS = [
 
 export const MvpNav: React.FC = () => {
   const router = useRouter();
-  const [isLoggedIn, setIsLoggedIn] = useState(false);
+  const isLoggedIn = useSyncExternalStore(subscribeToLogin, hasLoginToken, () => false);
   const [isMenuOpen, setIsMenuOpen] = useState(false);
-
-  useEffect(() => {
-    // 클라이언트 마운트 후 토큰 여부 확인
-    const token = localStorage.getItem('accessToken');
-    setIsLoggedIn(!!token);
-  }, []);
 
   const closeMenu = () => setIsMenuOpen(false);
 
   const handleLogout = () => {
-    localStorage.removeItem('accessToken');
-    setIsLoggedIn(false);
+    setLoginToken(null);
     closeMenu();
     router.push('/');
   };

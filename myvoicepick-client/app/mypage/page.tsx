@@ -1,4 +1,6 @@
-'use client';
+"use client";
+
+import { setLoginToken } from '../../lib/analysis-session';
 
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
@@ -74,7 +76,7 @@ export default function MyPage() {
         const accountResponse = await fetch('/api/v1/users/me', {
           headers: { Authorization: `Bearer ${token}` },
         });
-        if (accountResponse.status === 401) { localStorage.removeItem('accessToken'); router.replace('/login'); return; }
+        if (accountResponse.status === 401) { setLoginToken(null); router.replace('/login'); return; }
         if (!accountResponse.ok) throw new Error('계정 정보를 불러오지 못했습니다.');
         const account = await accountResponse.json();
         setUserEmail(account.email);
@@ -84,7 +86,7 @@ export default function MyPage() {
         const resLatest = await fetch('/api/v1/analyze/my-latest', {
           headers: { 'Authorization': `Bearer ${token}` }
         });
-        if (resLatest.status === 401) { localStorage.removeItem('accessToken'); router.replace('/login'); return; }
+        if (resLatest.status === 401) { setLoginToken(null); router.replace('/login'); return; }
         if (!resLatest.ok) throw new Error('최근 분석을 불러오지 못했습니다.');
         setLatestAnalysis(null);
         if (resLatest.ok) {

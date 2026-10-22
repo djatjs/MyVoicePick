@@ -12,3 +12,18 @@ export async function verifyAnalysisSession(token: string | null, request: typeo
 export function loginDestination(saved: string | null) {
   return saved === '/analyze' || saved === '/pricing' ? saved : '/mypage';
 }
+
+export function subscribeToLogin(listener: () => void) {
+  window.addEventListener('storage', listener);
+  return () => window.removeEventListener('storage', listener);
+}
+
+export function hasLoginToken() {
+  return Boolean(localStorage.getItem('accessToken'));
+}
+
+export function setLoginToken(token: string | null) {
+  if (token) localStorage.setItem('accessToken', token);
+  else localStorage.removeItem('accessToken');
+  window.dispatchEvent(new Event('storage'));
+}
