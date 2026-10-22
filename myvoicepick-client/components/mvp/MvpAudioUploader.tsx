@@ -1,586 +1,120 @@
-'use client';
+"use client";
 
-import React, { useState, useRef, useEffect } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
-import {
-  UploadCloud, Loader2, AlertCircle, CheckCircle2,
-  Music, Mic2, Sparkles, RotateCcw, Flame, Zap, Wind, Heart, Activity, Play,
-  Target, Stethoscope, ListMusic, PlayCircle, Crown, Wand2
-} from 'lucide-react';
-import { MvpButton } from './MvpButton';
-
+import Link from 'next/link';
+import { UploadCloud, Loader2, AlertCircle } from 'lucide-react';
+import { AnalysisResult, type MatchResult } from './AnalysisResult';
 import { TossPaymentModal } from './TossPaymentModal';
+
 type UploadState = 'idle' | 'dragging' | 'uploading' | 'processing' | 'success' | 'error';
 
-interface VocalStats {
-  warmth: number;
-  clarity: number;
-  power: number;
-  rhythm: number;
-  emotion: number;
-  dna_128_points?: number[]; // [신규] 128포인트 DNA 데이터
-}
-
-interface MatchResult {
-  title: string;
-  artist: string;
-  albumCoverUrl?: string;
-  previewUrl?: string;
-  voiceTags?: string[];
-  similarityScore?: number;
-  pitchHz?: number;
-  recommendReason?: string;
-  vocalPersona?: string;
-  vocalStats?: VocalStats;
-  userPlan?: string;
-  proFeatures?: ProFeatures;
-}
-
-function StatBar({ label, value, icon, color }: { label: string; value: number; icon: React.ReactNode; color: string }) {
-  return (
-    <div className="space-y-2">
-      <div className="flex items-center justify-between text-sm">
-        <div className="flex items-center gap-2 text-[var(--mvp-text-muted)]">
-          {icon}
-          <span className="font-medium">{label}</span>
-        </div>
-        <span className="font-bold text-[var(--mvp-text-main)]">{value}</span>
-      </div>
-      <div className="w-full h-1.5 bg-white/5 rounded-full overflow-hidden">
-        <div
-          className={`h-full rounded-full transition-all duration-1000 ease-out ${color} shadow-[0_0_8px_currentColor]`}
-          style={{ width: `${value}%` }}
-        />
-      </div>
-    </div>
-  );
-}
-
-/**
- * [업데이트] 보컬 시그니처 파형 (일반 유저 친화적 설명 추가)
- */
-function VocalDnaChart({ data }: { data: number[] }) {
-  const displayData = data && data.length === 128 ? data : Array(128).fill(20);
-  
-  const getAnimation = (i: number) => {
-    if (i % 3 === 0) return 'animate-[eq-pulse-1_1.5s_ease-in-out_infinite_alternate]';
-    if (i % 5 === 0) return 'animate-[eq-pulse-2_1.2s_ease-in-out_infinite_alternate]';
-    return 'animate-[eq-pulse-3_2s_ease-in-out_infinite_alternate]';
-  };
-
-  return (
-    <div className="relative mt-8 rounded-[var(--mvp-radius-lg)] bg-[#050505] border border-white/5 overflow-hidden">
-      <div className="p-5 pb-0 sm:p-8 sm:pb-0 flex flex-col sm:flex-row sm:items-start justify-between gap-4">
-        <div>
-          <h3 className="text-lg sm:text-xl font-black text-white flex items-center gap-2 mb-2 tracking-tight">
-            <Activity className="w-5 h-5 text-indigo-400" />
-            Vocal Signature Waveform
-          </h3>
-          <p className="text-sm text-white/60 font-medium leading-relaxed max-w-xl break-keep">
-            지문처럼 사람마다 다른 고유한 목소리의 주파수 파형입니다.<br className="hidden sm:block" />{" "}
-            MyVoicePick AI는 이 128개의 스펙트럼 데이터를 기반으로 당신과 가장 유사한 프로 가수를 정밀하게 찾아냈습니다.
-          </p>
-        </div>
-      </div>
-      <div className="p-5 sm:p-8">
-        <div className="relative flex items-end sm:gap-[1px] h-28 sm:h-40 w-full transition-all duration-1000">
-          {displayData.map((val, idx) => (
-            <div 
-              key={idx}
-              className={`flex-1 w-full bg-gradient-to-t from-indigo-900 to-indigo-400 rounded-t-[1px] ${getAnimation(idx)}`}
-              style={{ 
-                height: `${Math.max(5, val)}%`,
-                animationDelay: `${idx * 15}ms` 
-              }} 
-            />
-          ))}
-        </div>
-      </div>
-    </div>
-  );
-}
-
-interface ProFeatures {
-  key: string;
-  guide: string;
-  playlist: { title: string; artist: string }[];
-}
-
-/**
- * [업데이트] PRO 플랜 전용 보컬 성장 솔루션 컴포넌트 (동적 데이터 바인딩)
- */
-function VocalGrowthCenter({ isPro, proFeatures, onUpgradeClick }: { isPro: boolean, proFeatures?: ProFeatures, onUpgradeClick: () => void }) {
-  // 백엔드 데이터가 없을 경우를 대비한 폴백 데이터
-  const fallbackData = {
-    key: "분석 중...",
-    guide: "보컬 트레이닝 피드백을 생성 중입니다.",
-    playlist: [
-      { title: "추천곡을 불러오는 중", artist: "-" },
-      { title: "추천곡을 불러오는 중", artist: "-" },
-      { title: "추천곡을 불러오는 중", artist: "-" }
-    ]
-  };
-
-  const data = proFeatures || fallbackData;
-
-  return (
-    <div className="mt-8 sm:mt-12 rounded-[var(--mvp-radius-lg)] bg-[#050505] border border-white/5 overflow-hidden flex flex-col">
-      {/* Header */}
-      <div className="relative z-30 p-5 pb-5 sm:p-8 sm:pb-6 border-b border-white/5 flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-[#050505]">
-        <div>
-          <h3 className="text-lg sm:text-xl font-black text-white flex items-center gap-2 mb-1 tracking-tight">
-            <Target className="w-5 h-5 text-indigo-400" />
-            Vocal Action Plan
-          </h3>
-          <p className="text-sm text-white/40 font-medium break-keep">단순한 분석을 넘어, 당신의 목소리를 성장시킬 맞춤형 솔루션</p>
-        </div>
-        {!isPro ? (
-          <span className="px-4 py-1.5 bg-gradient-to-r from-indigo-500 to-fuchsia-500 text-white text-[10px] font-black rounded-full shadow-lg shadow-fuchsia-500/20 uppercase tracking-widest self-start animate-pulse">
-            PRO ONLY
-          </span>
-        ) : (
-          <span className="px-4 py-1.5 bg-emerald-500/10 text-emerald-400 text-[10px] font-black rounded-full border border-emerald-500/20 uppercase tracking-widest self-start">
-            UNLOCKED
-          </span>
-        )}
-      </div>
-
-      {/* Content & Paywall Container */}
-      <div className="relative flex-1">
-        {/* Content Area */}
-      <div className={`p-5 sm:p-8 grid md:grid-cols-2 gap-5 sm:gap-8 transition-all duration-1000 ${!isPro ? 'blur-xl opacity-20 select-none pointer-events-none' : ''}`}>
-        
-        {/* Left: Actionable Feedback */}
-        <div className="space-y-5 sm:space-y-8">
-          <div className="bg-white/[0.02] border border-white/5 rounded-2xl p-5 sm:p-6">
-            <div className="flex items-center gap-2 mb-4">
-              <Mic2 className="w-4 h-4 text-emerald-400" />
-              <h4 className="font-bold text-white/80 text-sm">최적의 키(Key) 추천</h4>
-            </div>
-            <div className="text-3xl font-black text-white tracking-tighter mb-2">{data.key}</div>
-            <p className="text-xs text-white/40">원곡보다 키를 조정하여 부르면 가장 매력적인 톤이 나옵니다.</p>
-          </div>
-
-          <div className="bg-indigo-500/5 border border-indigo-500/10 rounded-2xl p-5 sm:p-6 relative overflow-hidden">
-            <div className="absolute top-0 right-0 w-24 h-24 bg-indigo-500/10 blur-2xl rounded-full" />
-            <div className="flex items-center gap-2 mb-4 relative z-10">
-              <Stethoscope className="w-4 h-4 text-indigo-400" />
-              <h4 className="font-bold text-indigo-300 text-sm">1:1 보컬 트레이닝 피드백</h4>
-            </div>
-            <p className="text-sm text-white/80 leading-relaxed font-medium relative z-10 break-keep">
-              {data.guide}
-            </p>
-          </div>
-        </div>
-
-        {/* Right: Curated Playlist */}
-        <div className="bg-white/[0.02] border border-white/5 rounded-2xl p-5 sm:p-6 flex flex-col">
-          <div className="flex items-center justify-between mb-6">
-            <div className="flex items-center gap-2">
-              <ListMusic className="w-4 h-4 text-fuchsia-400" />
-              <h4 className="font-bold text-white/80 text-sm">찰떡 매칭 3곡 플레이리스트</h4>
-            </div>
-          </div>
-          <div className="space-y-3 flex-1">
-            {data.playlist.map((song, i) => (
-              <div 
-                key={i} 
-                className="flex items-center justify-between gap-3 p-3 -mx-3 sm:mx-0 rounded-xl hover:bg-white/5 transition-colors group"
-              >
-                <div className="flex items-center gap-4 min-w-0 cursor-pointer" onClick={() => window.open(`https://www.youtube.com/results?search_query=${encodeURIComponent(song.artist + ' ' + song.title)}`, '_blank')} title="유튜브에서 원곡 듣기">
-                  <span className="text-lg font-black text-white/20 group-hover:text-fuchsia-400 transition-colors">0{i+1}</span>
-                  <div>
-                    <p className="font-bold text-white text-sm">{song.title}</p>
-                    <p className="text-xs text-white/40">{song.artist}</p>
-                  </div>
-                </div>
-                <div className="flex items-center gap-2">
-                  <PlayCircle 
-                    className="w-8 h-8 shrink-0 text-white/20 hover:text-white transition-colors cursor-pointer" 
-                    onClick={() => window.open(`https://www.youtube.com/results?search_query=${encodeURIComponent(song.artist + ' ' + song.title)}`, '_blank')}
-                  />
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-      </div>
-
-      {/* Pro Paywall (Value-Driven) */}
-      {!isPro && (
-        <div className="absolute inset-0 z-20 flex flex-col items-center justify-center bg-black/40 backdrop-blur-md rounded-b-[var(--mvp-radius-lg)] p-4 sm:p-8">
-          <div className="flex flex-col items-center w-full max-w-[380px] text-center p-6 sm:p-8 bg-[#0a0a0a]/90 backdrop-blur-2xl rounded-3xl border border-white/10 shadow-2xl transition-all">
-             <div className="w-12 h-12 sm:w-14 sm:h-14 bg-gradient-to-br from-indigo-500 via-purple-500 to-fuchsia-500 rounded-2xl flex items-center justify-center mb-4 sm:mb-6 shadow-[0_0_30px_rgba(168,85,247,0.3)] rotate-3">
-               <Crown className="w-6 h-6 sm:w-7 sm:h-7 text-white -rotate-3" />
-             </div>
-             <h4 className="text-2xl sm:text-3xl font-black text-white mb-2 tracking-tight">잠재력을 깨우세요</h4>
-             <p className="text-xs sm:text-sm text-white/60 mb-6 font-medium">단순한 분석을 넘어, 진짜 성장 솔루션을 경험하세요.</p>
-             
-             <div className="w-full space-y-2 sm:space-y-3 mb-6 sm:mb-8 text-left">
-               <div className="flex items-center gap-3 p-3 bg-white/5 rounded-xl border border-white/5">
-                 <CheckCircle2 className="w-4 h-4 sm:w-5 sm:h-5 text-emerald-400 shrink-0" />
-                 <span className="text-xs sm:text-sm font-bold text-white/90">내 성대에 편안한 맞춤 Key</span>
-               </div>
-               <div className="flex items-center gap-3 p-3 bg-white/5 rounded-xl border border-white/5">
-                 <CheckCircle2 className="w-4 h-4 sm:w-5 sm:h-5 text-emerald-400 shrink-0" />
-                 <span className="text-xs sm:text-sm font-bold text-white/90">약점을 보완하는 1:1 발성 훈련</span>
-               </div>
-               <div className="flex items-center gap-3 p-3 bg-white/5 rounded-xl border border-white/5">
-                 <CheckCircle2 className="w-4 h-4 sm:w-5 sm:h-5 text-emerald-400 shrink-0" />
-                 <span className="text-xs sm:text-sm font-bold text-white/90">찰떡 선곡 3곡 플레이리스트</span>
-               </div>
-             </div>
-
-             <MvpButton variant="primary" className="w-full py-3 sm:!py-4 !rounded-xl bg-white text-black hover:bg-gray-200 transition-all shadow-[0_0_20px_rgba(255,255,255,0.2)] text-sm sm:text-base" onClick={onUpgradeClick}>
-               지금 바로 솔루션 확인하기
-             </MvpButton>
-             <p className="text-[9px] sm:text-[10px] text-white/30 mt-4 uppercase tracking-widest font-bold">Cancel Anytime</p>
-          </div>
-        </div>
-      )}
-      </div>
-    </div>
-  );
-}
-
 export default function MvpAudioUploader() {
+  const router = useRouter();
   const searchParams = useSearchParams();
-  const [uploadState, setUploadState] = useState<UploadState>('idle');
-  const [errorMessage, setErrorMessage] = useState<string>('');
+  const taskId = searchParams.get('taskId');
+  const [uploadState, setUploadState] = useState<UploadState>(taskId ? 'processing' : 'idle');
+  const [errorMessage, setErrorMessage] = useState('');
   const [matchResult, setMatchResult] = useState<MatchResult | null>(null);
-  const fileInputRef = useRef<HTMLInputElement>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const isBusy = uploadState === 'uploading' || uploadState === 'processing';
 
-  const handlePaymentClick = () => {
-    const token = localStorage.getItem('accessToken');
-    if (!token) {
-      alert('로그인이 필요한 서비스입니다. 로그인 페이지로 이동합니다.');
-      window.location.href = '/login';
-      return;
-    }
-    setIsModalOpen(true);
-  };
-
-  // URL에 taskId가 있을 경우 자동으로 해당 결과 로드
   useEffect(() => {
-    const taskId = searchParams.get('taskId');
-    if (taskId) {
-      setUploadState('processing');
-      pollStatus(taskId);
-    }
-  }, [searchParams]);
-
-  const pollStatus = async (taskId: string) => {
-    if (!taskId || taskId === 'undefined') {
-      setUploadState('error');
-      setErrorMessage('유효하지 않은 작업 ID입니다.');
-      return;
-    }
-
-    try {
-      const token = localStorage.getItem('accessToken');
-      const headers: HeadersInit = {};
-      if (token) headers['Authorization'] = `Bearer ${token}`;
-
-      const res = await fetch(`/api/v1/analyze/${taskId}/status`, { headers });
-      if (!res.ok) throw new Error('상태 조회 중 서버 오류가 발생했습니다.');
-      
-      const data = await res.json();
-      if (data.status === 'COMPLETED') {
-        setMatchResult({
-          title: data.matchedSongTitle || data.title || '제목 없음',
-          artist: data.matchedArtist || data.artist || '아티스트 미상',
-          albumCoverUrl: data.albumCoverUrl || data.album_cover_url,
-          previewUrl: data.previewUrl || data.preview_url,
-          voiceTags: data.voiceTags || [],
-          similarityScore: data.similarityScore ?? 0,
-          pitchHz: data.pitchHz ?? 0,
-          recommendReason: data.recommendReason || '',
-          vocalPersona: data.vocalPersona || '',
-          vocalStats: data.vocalStats || null,
-          userPlan: data.userPlan || 'FREE', 
-          proFeatures: data.proFeatures || undefined,
+    if (!taskId) return;
+    let cancelled = false;
+    let timer: ReturnType<typeof setTimeout>;
+    async function poll() {
+      try {
+        const token = localStorage.getItem('accessToken');
+        const res = await fetch(`/api/v1/analyze/${encodeURIComponent(taskId!)}/status`, {
+          headers: token ? { Authorization: `Bearer ${token}` } : {},
         });
-        setUploadState('success');
-      } else if (data.status === 'PENDING' || data.status === 'PROCESSING') {
-        // 다른 페이지로 갔다가 다시 돌아왔는데 아직 분석 중인 경우 폴링 재개
-        setUploadState('processing');
-        setTimeout(() => pollStatus(taskId), 3000);
-      } else if (data.status === 'FAILED') {
-        setErrorMessage('분석에 실패했습니다.');
+        if (!res.ok) throw new Error(res.status === 401 ? '로그인이 필요합니다. 로그인 후 결과를 다시 열어주세요.' : '결과를 불러오지 못했습니다. 잠시 후 다시 시도해주세요.');
+        const data = await res.json();
+        if (cancelled) return;
+        if (data.status === 'COMPLETED') {
+          setMatchResult({
+            title: data.matchedSongTitle || data.title || '제목 없음',
+            artist: data.matchedArtist || data.artist || '아티스트 미상',
+            previewUrl: data.previewUrl || data.preview_url,
+            voiceTags: data.voiceTags || [],
+            similarityScore: data.similarityScore,
+            pitchHz: data.pitchHz,
+            recommendReason: data.recommendReason,
+            vocalPersona: data.vocalPersona,
+            vocalStats: data.vocalStats,
+            userPlan: data.userPlan || 'FREE',
+            proFeatures: data.proFeatures,
+          });
+          setUploadState('success');
+        } else if (data.status === 'FAILED') {
+          throw new Error('음성을 분석하지 못했습니다. 목소리가 잘 들리는 다른 파일로 다시 시도해주세요.');
+        } else {
+          setUploadState('processing');
+          timer = setTimeout(poll, 3000);
+        }
+      } catch (error) {
+        if (cancelled) return;
+        setErrorMessage(error instanceof Error ? error.message : '결과를 불러오지 못했습니다.');
         setUploadState('error');
-      } else {
-        setTimeout(() => pollStatus(taskId), 3000);
       }
-    } catch (err) {
-      setUploadState('error');
-      setErrorMessage('오류가 발생했습니다.');
     }
-  };
+    void poll();
+    return () => { cancelled = true; clearTimeout(timer); };
+  }, [taskId]);
 
-  const processFile = async (file: File) => {
+  async function processFile(file: File) {
     if (isBusy) return;
+    const token = localStorage.getItem('accessToken');
+    if (!token) { router.push('/login'); return; }
     setErrorMessage('');
     setMatchResult(null);
     setUploadState('uploading');
     try {
-      const token = localStorage.getItem('accessToken');
       const form = new FormData();
       form.append('file', file);
-      
-      const headers: HeadersInit = {};
-      if (token) headers['Authorization'] = `Bearer ${token}`;
-
-      const res = await fetch('/api/v1/analyze', { 
-        method: 'POST', 
-        body: form,
-        headers
-      });
-      
+      const res = await fetch('/api/v1/analyze', { method: 'POST', body: form, headers: { Authorization: `Bearer ${token}` } });
       if (!res.ok) {
-        const errorData = await res.json();
-        throw new Error(errorData.message || '서버 업로드에 실패했습니다.');
+        const error = await res.json();
+        throw new Error(error.message || '파일을 업로드하지 못했습니다. 잠시 후 다시 시도해주세요.');
       }
-      
-      const { taskId } = await res.json();
-      if (!taskId) throw new Error('분석 작업 ID를 받지 못했습니다.');
-      
+      const data = await res.json();
+      if (!data.taskId) throw new Error('분석 작업을 시작하지 못했습니다. 다시 시도해주세요.');
       setUploadState('processing');
-      pollStatus(taskId);
-    } catch (err: any) {
+      router.replace(`/analyze?taskId=${encodeURIComponent(data.taskId)}`);
+    } catch (error) {
+      setErrorMessage(error instanceof Error ? error.message : '파일을 업로드하지 못했습니다.');
       setUploadState('error');
-      setErrorMessage(err.message || '업로드 중 오류가 발생했습니다.');
     }
-  };
+  }
 
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (file) processFile(file);
-    e.target.value = '';
-  };
-
-  const getPitchPos = (hz: number) => Math.min(100, Math.max(0, ((hz - 80) / 320) * 100));
+  function reset() {
+    setUploadState('idle');
+    setMatchResult(null);
+    setErrorMessage('');
+    router.replace('/analyze');
+  }
 
   return (
-    <div className="w-full max-w-5xl mx-auto">
-      <div className="mvp-glass-card overflow-hidden flex flex-col sm:min-h-[550px] border-white/10">
-        
-        {/* Tool Header */}
-        <div className="p-4 sm:p-8 border-b border-white/5 flex items-center justify-between gap-3 bg-[#0a0a0a]/50">
-          <div className="flex items-center gap-3 sm:gap-4 min-w-0">
-             <div className="w-10 h-10 sm:w-12 sm:h-12 shrink-0 rounded-xl bg-indigo-500/10 flex items-center justify-center border border-indigo-500/20">
-               {uploadState === 'success' ? <CheckCircle2 className="w-5 h-5 text-indigo-400" /> : <Activity className="w-5 h-5 text-indigo-400" />}
-             </div>
-             <div>
-               <h3 className="mvp-title text-lg sm:text-xl">{uploadState === 'success' ? 'Analysis Result' : 'Vocal Intelligence'}</h3>
-               <p className="text-xs sm:text-sm text-[var(--mvp-text-muted)] font-medium">인공지능 음향 데이터 분석 엔진 v2.0</p>
-             </div>
-          </div>
-          {uploadState === 'success' && (
-            <MvpButton variant="outline" size="md" onClick={() => setUploadState('idle')} className="!py-2 !px-4 text-xs sm:text-sm shrink-0">
-              <RotateCcw className="w-4 h-4 mr-2" /> New
-            </MvpButton>
-          )}
-        </div>
-
-        {/* Tool Body */}
-        <div className="flex-1 p-4 sm:p-8">
-          {uploadState === 'success' && matchResult ? (
-            <div className="animate-in fade-in slide-in-from-bottom-8 duration-1000 ease-out space-y-8">
-              
-              {/* HERO SECTION: Artist & Persona */}
-              <div className="relative overflow-hidden rounded-[var(--mvp-radius-lg)] border border-white/10 bg-[#0a0a0a] group">
-                {/* Dynamic Background */}
-                <div className="absolute inset-0 z-0 opacity-30 transition-opacity duration-1000 group-hover:opacity-40">
-                  <img src={matchResult.albumCoverUrl} className="w-full h-full object-cover blur-3xl scale-125" alt="blur-bg" />
-                  <div className="absolute inset-0 bg-gradient-to-r from-[#0a0a0a] via-[#0a0a0a]/80 to-transparent" />
-                </div>
-
-                <div className="relative z-10 p-6 sm:p-12 flex flex-col md:flex-row gap-6 md:gap-12 items-center md:items-stretch">
-                  {/* Album Cover */}
-                  <div className="relative w-40 h-40 sm:w-48 sm:h-48 md:w-56 md:h-56 shrink-0 rounded-2xl overflow-hidden shadow-[0_20px_50px_rgba(0,0,0,0.5)] border border-white/10">
-                    <img src={matchResult.albumCoverUrl} className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105" alt={matchResult.artist} />
-                    <div className="absolute top-3 right-3 bg-black/70 backdrop-blur-md px-3 py-1.5 rounded-full border border-white/10 flex items-center gap-1.5 shadow-xl">
-                       <div className="w-1.5 h-1.5 rounded-full bg-amber-400 animate-pulse" />
-                       <span className="text-[10px] font-black text-white tracking-widest">{matchResult.similarityScore}% MATCH</span>
-                    </div>
-                  </div>
-                  
-                  {/* Persona Info */}
-                  <div className="flex flex-col justify-center flex-1 text-center md:text-left">
-                    <span className="text-[10px] font-black tracking-[0.3em] text-indigo-400 uppercase mb-3 block">Acoustic Persona Profiling</span>
-                    <h2 className="text-3xl sm:text-5xl lg:text-6xl font-black mvp-display leading-tight mb-4 break-keep text-white tracking-tighter">
-                      &ldquo;{matchResult.vocalPersona}&rdquo;
-                    </h2>
-                    <div className="flex flex-wrap justify-center md:justify-start gap-2 mb-6">
-                      {matchResult.voiceTags?.map((tag, i) => (
-                         <span key={i} className="text-[10px] font-bold px-3 py-1.5 bg-white/10 border border-white/5 rounded-full text-white/80">{tag}</span>
-                      ))}
-                    </div>
-                    <p className="text-sm md:text-base text-white/60 leading-relaxed font-medium max-w-2xl break-keep">
-                      {matchResult.recommendReason}
-                    </p>
-                  </div>
-                </div>
-              </div>
-
-              {/* TWO COLUMNS: Stats & Track */}
-              <div className="grid lg:grid-cols-12 gap-4 sm:gap-8">
-                
-                {/* Stats Panel (col-span-8) */}
-                <div className="lg:col-span-8 bg-white/[0.02] border border-white/5 rounded-[var(--mvp-radius-lg)] p-5 sm:p-8">
-                   <h3 className="text-xs font-black tracking-widest uppercase text-white/50 mb-6 sm:mb-8 flex items-center gap-2">
-                     <Activity className="w-4 h-4 text-indigo-400"/>
-                     Vocal Attributes
-                   </h3>
-                   
-                   {matchResult.vocalStats && (
-                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-12 gap-y-6 sm:gap-y-8">
-                       <StatBar label="Warmth" value={matchResult.vocalStats.warmth} icon={<Flame className="w-4 h-4 text-orange-400" />} color="bg-orange-400" />
-                       <StatBar label="Clarity" value={matchResult.vocalStats.clarity} icon={<Wind className="w-4 h-4 text-sky-400" />} color="bg-sky-400" />
-                       <StatBar label="Power" value={matchResult.vocalStats.power} icon={<Zap className="w-4 h-4 text-amber-400" />} color="bg-amber-400" />
-                       <StatBar label="Rhythm" value={matchResult.vocalStats.rhythm} icon={<Activity className="w-4 h-4 text-emerald-400" />} color="bg-emerald-400" />
-                       <StatBar label="Emotion" value={matchResult.vocalStats.emotion} icon={<Heart className="w-4 h-4 text-rose-400" />} color="bg-rose-400" />
-                       
-                       <div className="space-y-3">
-                         <div className="flex items-center justify-between text-sm">
-                           <div className="flex items-center gap-2 text-[var(--mvp-text-muted)]">
-                             <Mic2 className="w-4 h-4 text-indigo-400" />
-                             <span className="font-medium">Vocal Pitch</span>
-                           </div>
-                           <span className="font-bold text-white">{matchResult.pitchHz} <span className="text-[10px] text-white/50 font-normal">Hz</span></span>
-                         </div>
-                         <div className="relative w-full h-1.5 bg-white/5 rounded-full overflow-hidden">
-                           <div className="absolute top-0 left-0 h-full bg-indigo-500/20 w-full" />
-                           <div className="absolute top-0 h-full bg-indigo-500 rounded-full shadow-[0_0_10px_rgba(99,102,241,0.5)]" style={{ width: `${getPitchPos(matchResult.pitchHz || 0)}%` }} />
-                         </div>
-                       </div>
-                     </div>
-                   )}
-                </div>
-
-                {/* Track Panel (col-span-4) */}
-                <div className="lg:col-span-4 flex flex-col h-full">
-                  <div className="bg-gradient-to-br from-indigo-500/10 to-transparent border border-indigo-500/20 rounded-[var(--mvp-radius-lg)] p-5 sm:p-8 relative overflow-hidden flex flex-col h-full justify-between group hover:border-indigo-500/40 transition-colors">
-                     <div className="absolute top-0 right-0 w-32 h-32 bg-indigo-500/10 blur-3xl rounded-full translate-x-10 -translate-y-10" />
-                     
-                     <div>
-                       <span className="text-[10px] font-black text-indigo-400 uppercase tracking-widest block mb-4 flex items-center gap-2">
-                         <Music className="w-3 h-3" /> Recommended Track
-                       </span>
-                       <h4 className="text-2xl font-black text-white mb-1 leading-tight">{matchResult.title}</h4>
-                       <p className="text-sm text-white/50 font-bold mb-6 sm:mb-8">{matchResult.artist}</p>
-                     </div>
-                     
-                     <button 
-                       onClick={() => matchResult.previewUrl && window.open(matchResult.previewUrl, '_blank')}
-                       className="w-full py-4 bg-white hover:bg-gray-100 text-black rounded-xl font-bold flex items-center justify-center gap-2 transition-all shadow-[0_10px_20px_rgba(255,255,255,0.1)] active:scale-95"
-                     >
-                       <Play className="w-4 h-4 fill-current" /> Play Preview
-                     </button>
-                  </div>
-                </div>
-              </div>
-
-              {/* FULL WIDTH DNA CHART (무료 개방) */}
-              {matchResult.vocalStats && (
-                <VocalDnaChart 
-                  data={matchResult.vocalStats.dna_128_points || []} 
-                />
-              )}
-
-              {/* ACTIONABLE GROWTH CENTER (새로운 페이월) */}
-              <VocalGrowthCenter 
-                isPro={matchResult.userPlan === 'PRO' || matchResult.userPlan === 'STUDIO'} 
-                proFeatures={matchResult.proFeatures}
-                onUpgradeClick={handlePaymentClick}
-              />
-            </div>
-          ) : (
-            <div className="flex flex-col items-center justify-center sm:min-h-[400px]">
-              <input 
-                type="file" 
-                ref={fileInputRef} 
-                className="hidden" 
-                accept="audio/mpeg,audio/wav,audio/x-m4a,audio/mp4,audio/aac"
-                disabled={isBusy}
-                onChange={handleFileChange} 
-              />
-              <div
-                className={`
-                  w-full max-w-3xl min-h-[380px] sm:min-h-[450px] rounded-[var(--mvp-radius-lg)] border border-dashed
-                  flex flex-col items-center justify-center px-5 py-10 sm:p-12 transition-all duration-700 cursor-pointer group
-                  ${uploadState === 'dragging' ? 'border-indigo-500 bg-indigo-500/10 scale-[1.02]'
-                    : isBusy ? 'border-white/10 bg-white/[0.02] !cursor-default'
-                      : uploadState === 'error' ? 'border-red-500/30 bg-red-500/5'
-                        : 'border-white/10 bg-[#050505] hover:border-white/30 hover:bg-white/[0.02] shadow-2xl'}
-                `}
-                onDragOver={(e) => { e.preventDefault(); if (!isBusy) setUploadState('dragging'); }}
-                onDragLeave={() => { if (uploadState === 'dragging') setUploadState('idle'); }}
-                onDrop={(e) => {
-                   e.preventDefault();
-                   if (isBusy) return;
-                   const file = e.dataTransfer.files[0];
-                   if (file) processFile(file);
-                }}
-                onClick={() => { if (uploadState === 'idle' || uploadState === 'error') fileInputRef.current?.click(); }}
-              >
-                {isBusy ? (
-                  <div role="status" aria-live="polite" className="flex flex-col items-center gap-8 sm:gap-10">
-                    <div className="relative">
-                       <div className="absolute inset-0 bg-indigo-500/20 blur-3xl rounded-full animate-pulse" />
-                       <Loader2 className="w-16 h-16 sm:w-20 sm:h-20 animate-spin text-indigo-500 relative z-10" />
-                    </div>
-                    <div className="text-center space-y-3">
-                       <h3 className="text-2xl sm:text-3xl font-black tracking-tight text-white">
-                         {uploadState === 'uploading' ? '음성 파일 업로드 중...' : '음성 분석 진행 중...'}
-                       </h3>
-                       <p className="text-sm sm:text-lg text-[var(--mvp-text-muted)] font-medium break-keep">
-                         {uploadState === 'uploading'
-                           ? '파일을 서버로 전송하고 있습니다. 잠시만 기다려 주세요.'
-                           : '분석을 준비하거나 목소리의 특징을 추출하고 있습니다. 완료되면 결과가 자동으로 표시됩니다.'}
-                       </p>
-                    </div>
-                  </div>
-                ) : uploadState === 'error' ? (
-                  <div className="flex flex-col items-center gap-6 text-center animate-in zoom-in-95 duration-500">
-                    <div className="w-20 h-20 sm:w-24 sm:h-24 bg-red-500/10 rounded-3xl flex items-center justify-center border border-red-500/20">
-                      <AlertCircle className="w-10 h-10 sm:w-12 sm:h-12 text-red-500" />
-                    </div>
-                    <div className="space-y-2">
-                       <h3 className="text-2xl sm:text-3xl font-black text-red-500 tracking-tight">Analysis Failed</h3>
-                       <p className="text-sm sm:text-lg text-[var(--mvp-text-muted)] max-w-sm font-medium break-keep">{errorMessage}</p>
-                    </div>
-                    <MvpButton variant="outline" size="md" onClick={(e) => { e.stopPropagation(); setUploadState('idle'); }} className="mt-6 !px-8">
-                      Try Again
-                    </MvpButton>
-                  </div>
-                ) : (
-                  <div className="flex flex-col items-center gap-7 sm:gap-10 text-center">
-                    <div className="relative">
-                      <div className="absolute inset-0 bg-indigo-500/20 blur-3xl rounded-full group-hover:scale-150 transition-transform duration-1000" />
-                      <div className="w-24 h-24 sm:w-32 sm:h-32 bg-gradient-to-tr from-[#111] to-[#1a1a1a] rounded-[var(--mvp-radius-lg)] flex items-center justify-center border border-white/10 shadow-2xl relative z-10 group-hover:-translate-y-2 transition-transform duration-500">
-                        <UploadCloud className="w-12 h-12 sm:w-16 sm:h-16 text-indigo-400" />
-                      </div>
-                    </div>
-                    <div className="space-y-3 sm:space-y-4">
-                       <h3 className="text-[1.7rem] sm:text-4xl font-black tracking-tighter text-white">Your Sound, Our Data.</h3>
-                       <p className="text-sm sm:text-lg text-[var(--mvp-text-muted)] max-w-sm font-medium break-keep">MP3, WAV 파일을 드롭하거나 클릭하여 당신의 고유한 보컬 DNA를 발견하세요.</p>
-                    </div>
-                    <MvpButton variant="primary" size="lg" className="!px-8 sm:!px-10 text-base sm:text-lg shadow-[0_15px_30px_rgba(99,102,241,0.3)] !rounded-full">Choose Audio File</MvpButton>
-                  </div>
-                )}
-              </div>
-            </div>
-          )}
-        </div>
-      </div>
-      <TossPaymentModal 
-        isOpen={isModalOpen} 
-        onClose={() => setIsModalOpen(false)} 
-        plan="PRO" 
-      />
-    </div>
+    <>
+      <header className="workspace-heading workspace-profile">
+        <div><p className="workspace-kicker">내 목소리로 찾는 새로운 곡</p><h1>{uploadState === 'success' ? '나의 보컬 분석 결과' : '내 목소리 분석하기'}</h1><p className="workspace-description">{uploadState === 'success' ? '닮은 가수와 추천곡을 확인하고, 다음에 부를 노래를 골라보세요.' : '노래한 파일에서 나와 닮은 가수와 어울리는 곡을 찾아보세요.'}</p></div>
+        {uploadState === 'success' && <button className="workspace-secondary" onClick={reset}>새로 분석하기</button>}
+      </header>
+      {uploadState === 'success' && matchResult ? <AnalysisResult result={matchResult} onUpgrade={() => setIsModalOpen(true)} /> : (
+        <>
+          <section className={`workspace-upload workspace-panel ${uploadState === 'dragging' ? 'workspace-dragging' : ''}`}
+            onDragOver={event => { event.preventDefault(); if (!isBusy) setUploadState('dragging'); }}
+            onDragLeave={() => { if (uploadState === 'dragging') setUploadState('idle'); }}
+            onDrop={event => { event.preventDefault(); const file = event.dataTransfer.files[0]; if (file && !isBusy) void processFile(file); }}>
+            <input type="file" ref={fileInputRef} className="sr-only" tabIndex={-1} aria-label="분석할 음성 파일" accept=".mp3,.wav,.m4a" disabled={isBusy} onChange={event => { const file = event.target.files?.[0]; if (file) void processFile(file); event.target.value = ''; }} />
+            {isBusy ? <div role="status" aria-live="polite"><Loader2 className="workspace-upload-icon animate-spin" aria-hidden="true" /><h2>{uploadState === 'uploading' ? '파일을 업로드하고 있어요' : '목소리를 분석하고 있어요'}</h2><p className="workspace-description">{uploadState === 'uploading' ? '파일을 서버로 전송하고 있습니다.' : '분석을 준비하거나 음성의 특징을 비교하고 있습니다. 완료되면 결과를 보여드릴게요.'}</p></div> : uploadState === 'error' ? <div role="alert"><AlertCircle className="workspace-upload-icon" aria-hidden="true" /><h2>분석을 완료하지 못했어요</h2><p className="workspace-description">{errorMessage}</p><button className="workspace-primary" onClick={reset}>다시 시작하기</button><Link className="workspace-inline-link" href="/login">로그인하기</Link></div> : <div><UploadCloud className="workspace-upload-icon" aria-hidden="true" /><h2>노래한 파일을 여기에 놓아주세요</h2><p className="workspace-description">또는 아래 버튼으로 파일을 선택하세요.</p><button className="workspace-primary" onClick={() => fileInputRef.current?.click()}>파일 선택하고 분석하기</button><p className="workspace-note">MP3 · WAV · M4A · 50MB 미만 · 선택하면 분석을 시작합니다.</p></div>}
+          </section>
+          <div className="workspace-upload-help"><div><h3>목소리가 잘 들리는 파일을 준비하세요</h3><p>주변 소음과 반주가 적고, 내 목소리가 선명하게 들리는 녹음을 권장합니다.</p></div><div><h3>분석하려면 로그인이 필요해요</h3><p>분석 결과는 계정에 저장됩니다. <Link href="/login">로그인하기</Link> · <Link href="/guide">업로드 가이드</Link></p></div></div>
+        </>
+      )}
+      <TossPaymentModal isOpen={isModalOpen} onClose={() => setIsModalOpen(false)} plan="PRO" />
+    </>
   );
 }

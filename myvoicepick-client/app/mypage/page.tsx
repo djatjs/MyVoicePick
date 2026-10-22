@@ -5,39 +5,21 @@ import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { MvpNav } from '../../components/mvp/MvpNav';
 import { MvpFooter } from '../../components/mvp/MvpFooter';
-import { MvpButton } from '../../components/mvp/MvpButton';
-import { Activity, History, Mic2, Music, BarChart3, ChevronRight, Clock, Star, Zap, ShieldCheck, Trash2 } from 'lucide-react';
+import { Trash2 } from 'lucide-react';
 import '../../styles/mvp-design.css';
+import '../../styles/workspace.css';
 
 import ProfileHeader from '../../components/mypage/ProfileHeader';
 import CoreInsights from '../../components/mypage/CoreInsights';
 import ProInsights from '../../components/mypage/ProInsights';
-import { TossPaymentModal } from '../../components/mvp/TossPaymentModal';
-
-interface VocalStats {
-  warmth: number;
-  clarity: number;
-  power: number;
-  rhythm: number;
-  emotion: number;
-}
-
-interface ProFeatures {
-  key?: string;
-  guide?: string;
-}
 
 interface LatestAnalysis {
   taskId: string;
   status: string;
   vocalPersona?: string;
-  vocalStats?: VocalStats;
   matchedSongTitle?: string;
   matchedArtist?: string;
-  recommendReason?: string;
-  userPlan?: string;
   similarityScore?: number;
-  proFeatures?: ProFeatures;
 }
 
 export default function MyPage() {
@@ -46,20 +28,9 @@ export default function MyPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [latestAnalysis, setLatestAnalysis] = useState<LatestAnalysis | null>(null);
   const [history, setHistory] = useState<LatestAnalysis[]>([]);
-  const [userPlan, setUserPlan] = useState<string>('FREE');
-  const [isModalOpen, setIsModalOpen] = useState(false);
-  const [selectedPlan, setSelectedPlan] = useState('PRO');
-
-  const handlePaymentClick = (plan: string) => {
-    const token = localStorage.getItem('accessToken');
-    if (!token) {
-      alert('로그인이 필요한 서비스입니다. 로그인 페이지로 이동합니다.');
-      window.location.href = '/login';
-      return;
-    }
-    setSelectedPlan(plan);
-    setIsModalOpen(true);
-  };
+  const [userPlan, setUserPlan] = useState<string>('');
+  const [loadError, setLoadError] = useState('');
+  const [revision, setRevision] = useState(0);
 
   const handleDeleteHistory = async (e: React.MouseEvent, taskId: string) => {
     e.preventDefault();
@@ -80,6 +51,7 @@ export default function MyPage() {
 
       if (res.ok) {
         setHistory(prev => prev.filter(task => task.taskId !== taskId));
+        setRevision(value => value + 1);
       } else {
         alert('삭제 중 오류가 발생했습니다.');
       }
@@ -97,26 +69,30 @@ export default function MyPage() {
     }
 
     const fetchMyData = async () => {
+      setLoadError('');
       try {
-        const base64Url = token.split('.')[1];
-        const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
-        const jsonPayload = decodeURIComponent(window.atob(base64).split('').map(function (c) {
-          return '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2);
-        }).join(''));
-        const payload = JSON.parse(jsonPayload);
-        setUserEmail(payload.sub);
+        const accountResponse = await fetch('/api/v1/users/me', {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        if (accountResponse.status === 401) { localStorage.removeItem('accessToken'); router.replace('/login'); return; }
+        if (!accountResponse.ok) throw new Error('계정 정보를 불러오지 못했습니다.');
+        const account = await accountResponse.json();
+        setUserEmail(account.email);
+        setUserPlan(account.plan);
 
         // 1. 최신 분석 결과 가져오기
         const resLatest = await fetch('/api/v1/analyze/my-latest', {
           headers: { 'Authorization': `Bearer ${token}` }
         });
+        if (resLatest.status === 401) { localStorage.removeItem('accessToken'); router.replace('/login'); return; }
+        if (!resLatest.ok) throw new Error('최근 분석을 불러오지 못했습니다.');
+        setLatestAnalysis(null);
         if (resLatest.ok) {
           const text = await resLatest.text();
           if (text) {
             const data = JSON.parse(text);
             if (data && data.status === 'COMPLETED') {
               setLatestAnalysis(data);
-              if (data.userPlan) setUserPlan(data.userPlan);
             }
           }
         }
@@ -125,6 +101,7 @@ export default function MyPage() {
         const resHistory = await fetch('/api/v1/analyze/my-history', {
           headers: { 'Authorization': `Bearer ${token}` }
         });
+        if (!resHistory.ok) throw new Error('분석 기록을 불러오지 못했습니다.');
         if (resHistory.ok) {
           const text = await resHistory.text();
           if (text) {
@@ -134,145 +111,33 @@ export default function MyPage() {
         }
       } catch (e) {
         console.error('Error fetching mypage data', e);
+        setLoadError('기록을 불러오지 못했습니다. 잠시 후 다시 시도해주세요.');
       } finally {
         setIsLoading(false);
       }
     };
 
     fetchMyData();
-  }, [router]);
+  }, [router, revision]);
 
-  useEffect(() => {
-    // 페이지 진입 시 무조건 최상단으로 스크롤
-    if (!isLoading) {
-      window.scrollTo({ top: 0, behavior: 'smooth' });
-    }
-  }, [isLoading]);
-
-  if (isLoading) {
-    return (
-      <div className="min-h-screen mvp-canvas flex items-center justify-center animate-in fade-in duration-1000">
-        <div className="text-white flex flex-col items-center gap-6">
-          <div className="w-16 h-16 border-4 border-indigo-500/30 border-t-indigo-500 rounded-full animate-spin shadow-[0_0_20px_rgba(99,102,241,0.4)]" />
-          <p className="font-bold tracking-[0.2em] text-indigo-400 uppercase text-xs">Accessing Studio Canvas...</p>
-        </div>
-      </div>
-    );
-  }
-
-  const statLabels = {
-    warmth: "따뜻함",
-    clarity: "선명도",
-    power: "성량",
-    rhythm: "리듬감",
-    emotion: "표현력"
-  };
 
   return (
-    <main className="mvp-canvas min-h-screen flex flex-col relative overflow-clip">
-      {/* Background Decor */}
-      <div className="absolute top-[-10%] left-[-10%] w-[40%] h-[40%] bg-indigo-500/10 rounded-full blur-[120px] pointer-events-none"></div>
-      <div className="absolute bottom-[-10%] right-[-10%] w-[40%] h-[40%] bg-fuchsia-500/10 rounded-full blur-[120px] pointer-events-none"></div>
-
+    <div className="mvp-canvas workspace-page min-h-screen flex flex-col">
       <MvpNav />
-
-      <div className="flex-1 max-w-7xl w-full mx-auto px-5 sm:px-6 py-10 sm:py-16 lg:py-24 space-y-10 sm:space-y-20 relative z-10">
-
-        <div className="animate-in fade-in slide-in-from-bottom-8 duration-1000">
-          <ProfileHeader userEmail={userEmail} userPlan={userPlan} />
-        </div>
-
-        {/* Top Insights Grid */}
-        <section className="grid grid-cols-1 lg:grid-cols-12 gap-5 sm:gap-8 items-stretch animate-in fade-in slide-in-from-bottom-8 duration-1000 delay-150">
-          {/* Main Visual Profile */}
-          <div className="lg:col-span-8 mvp-glass-card p-6 sm:p-10 md:p-12 relative overflow-hidden group">
-            <div className="absolute top-0 right-0 w-96 h-96 bg-indigo-500/5 rounded-full blur-[100px] -mr-48 -mt-48 group-hover:bg-indigo-500/10 transition-all duration-700"></div>
-            <CoreInsights latestAnalysis={latestAnalysis} statLabels={statLabels} />
-          </div>
-
-          <div className="lg:col-span-4 flex">
-            <ProInsights latestAnalysis={latestAnalysis} userPlan={userPlan} />
-          </div>
-        </section>
-
-        {/* Session History Section */}
-        <section className="space-y-6 sm:space-y-8 pt-2 sm:pt-8 animate-in fade-in slide-in-from-bottom-8 duration-1000 delay-300">
-          <div className="flex items-center justify-between border-b border-white/5 pb-4">
-            <h4 className="text-xl font-black text-white tracking-tighter flex items-center gap-3">
-              <History className="w-6 h-6 text-indigo-400" /> Session History
-            </h4>
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 sm:gap-6">
-            {history.length > 0 ? history.map((task) => (
-              <Link key={task.taskId} href={`/analyze?taskId=${task.taskId}`} className="block bg-slate-900/40 p-5 sm:p-6 hover:bg-slate-800 transition-all group border border-slate-700/50 rounded-[24px] shadow-lg relative overflow-hidden backdrop-blur-md">
-                <div className="absolute top-0 right-0 p-3 sm:p-4 md:opacity-0 md:group-hover:opacity-100 transition-opacity z-20">
-                  <button 
-                    onClick={(e) => handleDeleteHistory(e, task.taskId)}
-                    className="p-2 rounded-xl bg-red-500/10 text-white/30 hover:text-red-400 hover:bg-red-500/20 transition-all backdrop-blur-sm"
-                    title="이력 삭제"
-                  >
-                    <Trash2 className="w-4 h-4" />
-                  </button>
-                </div>
-                <div className="space-y-3 relative z-10">
-                  <div className="text-lg font-black text-white group-hover:text-indigo-400 transition-colors pr-10 leading-tight break-keep">
-                    {task.vocalPersona || "Vocal Analysis DNA"}
-                  </div>
-                  <div className="text-xs font-bold text-white/40 flex items-center gap-2">
-                    <Music className="w-3.5 h-3.5 text-emerald-400" /> {task.matchedSongTitle || "N/A"}
-                  </div>
-                </div>
-                <div className="mt-6 sm:mt-8 flex items-center justify-between text-[10px] font-black text-white/20 uppercase tracking-widest relative z-10">
-                  <span className={task.status === 'COMPLETED' ? 'text-emerald-500/50' : 'text-amber-500/50'}>{task.status}</span>
-                  <div className="w-8 h-8 rounded-full bg-white/5 flex items-center justify-center group-hover:bg-indigo-500 group-hover:text-white transition-all">
-                    <ChevronRight className="w-4 h-4 group-hover:translate-x-0.5 transition-transform" />
-                  </div>
-                </div>
-              </Link>
-            )) : (
-              <div className="col-span-full py-14 sm:py-20 px-5 border border-dashed border-white/10 rounded-[32px] text-center bg-slate-900/20 backdrop-blur-sm">
-                <div className="w-16 h-16 bg-white/5 rounded-full flex items-center justify-center mx-auto mb-4">
-                  <History className="w-6 h-6 text-white/20" />
-                </div>
-                <p className="text-sm font-black text-white/40 uppercase tracking-widest">No previous sessions found</p>
-                <p className="text-xs text-white/20 mt-2 font-medium">Your vocal DNA records will appear here.</p>
-              </div>
-            )}
-          </div>
-        </section>
-
-        {/* Upgrade Banner for FREE users */}
-        {userPlan === 'FREE' && (
-          <div className="mt-12 p-7 sm:p-10 md:p-12 bg-gradient-to-r from-indigo-900/80 via-violet-900/60 to-slate-900/80 border border-indigo-500/30 rounded-[32px] shadow-[0_20px_40px_rgba(99,102,241,0.15)] relative overflow-hidden flex flex-col md:flex-row items-center justify-between gap-8 backdrop-blur-xl group animate-in fade-in slide-in-from-bottom-8 duration-1000 delay-500">
-            <div className="absolute -right-20 -bottom-20 w-64 h-64 bg-indigo-500/20 rounded-full blur-[80px] group-hover:bg-fuchsia-500/20 transition-all duration-1000"></div>
-            <div className="relative z-10 flex-1 flex flex-col md:flex-row items-center md:items-start gap-6 text-center md:text-left">
-              <div className="w-16 h-16 bg-gradient-to-br from-indigo-400 to-fuchsia-400 rounded-2xl flex items-center justify-center shadow-lg rotate-3 group-hover:rotate-6 transition-transform">
-                <Zap className="w-8 h-8 text-white -rotate-3 group-hover:-rotate-6 transition-transform" />
-              </div>
-              <div>
-                <h4 className="text-2xl sm:text-3xl font-black text-white mb-2 tracking-tighter drop-shadow-md">Unlock Studio PRO.</h4>
-                <p className="text-white/70 text-sm font-medium leading-relaxed max-w-xl break-keep">
-                  128포인트 정밀 DNA 분석부터, 취약점을 보완하는 전용 1:1 보컬 트레이닝 가이드까지.<br className="hidden md:block" />{" "}PRO 멤버십으로 한계 없는 성장을 경험하세요.
-                </p>
-              </div>
-            </div>
-            <div className="relative z-10 w-full md:w-auto">
-              <MvpButton className="w-full md:w-auto h-14 px-10 bg-white text-black hover:bg-gray-200 text-sm font-black rounded-2xl uppercase tracking-widest shadow-[0_0_30px_rgba(255,255,255,0.2)] hover:scale-105 transition-all" onClick={() => handlePaymentClick('PRO')}>
-                Upgrade Now
-              </MvpButton>
-            </div>
-          </div>
-        )}
-      </div>
-
+      <main className="workspace-container workspace-records">
+        <ProfileHeader userEmail={userEmail} userPlan={userPlan} />
+        {isLoading ? <div className="workspace-panel workspace-empty" role="status">나의 보컬 기록을 불러오고 있어요.</div> : loadError ? <div className="workspace-panel workspace-empty" role="alert"><h2>기록을 불러오지 못했어요</h2><p>{loadError}</p><button className="workspace-secondary" onClick={() => setRevision(value => value + 1)}>다시 불러오기</button></div> : <>
+          {latestAnalysis ? <section className="workspace-result-grid"><CoreInsights latestAnalysis={latestAnalysis} /><ProInsights latestAnalysis={latestAnalysis} /></section> : <section className="workspace-panel workspace-empty"><h2>{history.length ? '아직 완료된 분석이 없어요' : '첫 번째 목소리 기록을 남겨보세요'}</h2><p>{history.length ? '아래 기록에서 진행 상태를 확인하거나 새 분석을 시작하세요.' : '노래한 파일을 올리면 닮은 가수와 추천곡을 확인할 수 있어요.'}</p><Link href="/analyze" className="workspace-primary">첫 분석 시작하기</Link></section>}
+          <section className="workspace-history"><div className="workspace-history-heading"><h2>분석 기록</h2><span>{history.length}건</span></div>
+            {history.length ? <ul>{history.map(task => <li key={task.taskId}>
+              <Link className="workspace-history-link" href={`/analyze?taskId=${encodeURIComponent(task.taskId)}`}><div><h3>{task.matchedSongTitle || '음성 분석'}</h3><p>{task.matchedArtist || task.vocalPersona || '결과를 확인해주세요'}</p></div><span className="workspace-status">{task.status === 'COMPLETED' ? '분석 완료' : task.status === 'FAILED' ? '분석 실패' : task.status === 'PENDING' ? '분석 대기' : '분석 중'}</span><span className="workspace-history-action">결과 보기</span></Link>
+              <button className="workspace-delete" onClick={event => handleDeleteHistory(event, task.taskId)} aria-label={`${task.matchedSongTitle || '음성 분석'} 기록 삭제`}><Trash2 size={17} aria-hidden="true" /></button>
+            </li>)}</ul> : <p className="workspace-empty">아직 저장된 분석 기록이 없습니다.</p>}
+          </section>
+        </>}
+        {userPlan && <aside className="workspace-plan"><div><h2>현재 {userPlan} 플랜을 이용하고 있어요</h2><p>제공 기능과 이용 요금은 요금제 페이지에서 확인할 수 있습니다.</p></div><Link href="/pricing" className="workspace-inline-link">요금제 비교하기</Link></aside>}
+      </main>
       <MvpFooter />
-      
-      <TossPaymentModal 
-        isOpen={isModalOpen} 
-        onClose={() => setIsModalOpen(false)} 
-        plan={selectedPlan} 
-      />
-    </main>
+    </div>
   );
 }
