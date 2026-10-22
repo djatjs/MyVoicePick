@@ -28,4 +28,19 @@ assert.doesNotMatch(full, /Pro 기능 알아보기|disabled=""/);
 assert.match(render({ ...minimal, userPlan: 'STUDIO', proFeatures: { key: 'C', guide: 'Studio 안내', playlist: [] } }), /Studio 안내/);
 assert.match(render({ ...minimal, similarityScore: 0 }), /0<span>%/);
 assert.match(render({ ...minimal, userPlan: 'PRO' }), /추천 키가 없습니다/);
+const { DashboardPreview } = load('../components/home/DashboardPreview.tsx');
+const example = renderToStaticMarkup(React.createElement(DashboardPreview));
+for (const label of ['나의 보컬 리포트', '나와 닮은 가수', '음색 유사도', '추천곡']) {
+  assert.ok(example.includes(label) && missing.includes(label));
+}
+assert.match(example, /결과 예시/);
+assert.match(missing, /분석 완료/);
+assert.doesNotMatch(missing, /vocal-wave/);
+const { PricingSection } = load('../components/home/PricingSection.tsx');
+const pricing = renderToStaticMarkup(React.createElement(PricingSection));
+assert.match(pricing, /href="\/analyze"/);
+assert.match(pricing, /테스트 금액 100원/);
+assert.match(pricing, /Pro 테스트 결제하기/);
+assert.match(pricing, /disabled="">준비 중/);
+assert.doesNotMatch(pricing, /5만|99\.9|일일 3회|Most Popular/);
 console.log('Analysis result: missing data, preview, Pro and Studio checks passed.');

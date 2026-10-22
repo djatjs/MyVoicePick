@@ -1,0 +1,43 @@
+.vocal-summary { scroll-margin-top: 110px; background: #1e293b; border: 1px solid #39465e; border-radius: 20px; box-shadow: 0 24px 70px #02061755; overflow: hidden; }
+.vocal-summary-top { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 23px 26px; border-bottom: 1px solid #ffffff0d; font-size: 13px; }
+.vocal-summary-top > span:first-child { display: flex; align-items: center; gap: 9px; }
+.vocal-summary-badge { color: #c4b5fd; background: #8b5cf61a; padding: 4px 9px; border-radius: 5px; font-size: 11px; }
+.vocal-wave { padding: 27px 0 20px; background: #172136; text-align: center; }
+.vocal-wave svg { width: 100%; height: 115px; }
+.vocal-wave-grid { fill: none; stroke: #94a3b812; stroke-width: 1; }
+.vocal-wave-line { fill: none; stroke: #a5a6fb; stroke-width: 2; stroke-linejoin: round; }
+.vocal-wave > span { display: block; color: #aab7ca; font-size: 11px; margin-top: 15px; }
+.vocal-match { display: flex; align-items: center; justify-content: space-between; gap: 20px; padding: 28px; }
+.vocal-label { color: #b5b9d8; font-size: 12px; margin-bottom: 7px; }
+.vocal-match h2 { font-size: 36px; font-weight: 650; letter-spacing: -.04em; margin-bottom: 8px; }
+.vocal-match p:last-child, .vocal-track p:last-child { font-size: 12px; color: #aab7ca; }
+.vocal-score { display: flex; flex-direction: column; align-items: flex-end; }
+.vocal-score strong { color: #c4b5fd; font-size: 48px; font-weight: 600; line-height: 1.2; letter-spacing: -.06em; font-variant-numeric: tabular-nums; }
+.vocal-score strong span { font-size: 23px; margin-left: 3px; }
+.vocal-score > span { color: #b5b9d8; font-size: 12px; margin-top: 7px; }
+.vocal-track { display: flex; align-items: center; gap: 15px; margin: 0 26px; border-top: 1px solid #ffffff12; padding: 23px 0; }
+.vocal-track-icon { display: flex; align-items: center; justify-content: center; width: 58px; height: 64px; flex-shrink: 0; color: #c4b5fd; border-radius: 7px; background: #353653; }
+.vocal-track h3 { font-size: 17px; font-weight: 600; margin-bottom: 3px; }
+.vocal-track .vocal-label { margin-bottom: 3px; font-size: 10px; }
+.vocal-track-tag { margin-left: auto; color: #aab7ca; font-size: 11px; }
+.vocal-summary-note { padding: 0 26px 22px; color: #aab7ca; font-size: 11px; line-height: 1.7; word-break: keep-all; }
+.vocal-track-copy { flex: 1; min-width: 0; }
+.vocal-track-copy h3, .vocal-match h2 { overflow-wrap: anywhere; }
+.vocal-summary-report .vocal-summary-body { display: grid; grid-template-columns: 1fr 1fr; }
+.vocal-summary-report .vocal-match { border-right: 1px solid #ffffff12; }
+.vocal-summary-report .vocal-track { flex-wrap: wrap; border-top: 0; margin: 0; padding: 28px; }
+.vocal-summary-report .vocal-track h3 { font-size: 24px; line-height: 1.4; }
+.vocal-summary-report .vocal-track .workspace-secondary { font-size: 12px; cursor: default; color: #aab7ca; }
+@media (max-width: 767px) {
+  .vocal-summary { max-width: 520px; width: 100%; }
+  .vocal-summary-top { padding: 18px 20px; }
+  .vocal-match { padding: 23px 20px; }
+  .vocal-track { margin: 0 20px; }
+  .vocal-summary-note { padding-left: 20px; padding-right: 20px; }
+  .vocal-summary-report { max-width: none; }
+  .vocal-summary-report .vocal-summary-body { grid-template-columns: 1fr; }
+  .vocal-summary-report .vocal-match { border-right: 0; }
+  .vocal-summary-report .vocal-track { padding: 23px 20px; border-top: 1px solid #ffffff12; }
+  .vocal-summary-report .vocal-track > .workspace-primary,
+  .vocal-summary-report .vocal-track > .workspace-secondary { flex-basis: 100%; width: 100%; }
+}

@@ -15,6 +15,7 @@ assert.equal(await verifyAnalysisSession('expired', async () => new Response(nul
 assert.equal(await verifyAnalysisSession('token', async () => new Response(null, { status: 500 })), 'error');
 assert.equal(await verifyAnalysisSession('token', async () => { throw Error('offline'); }), 'error');
 assert.equal(loginDestination('/analyze'), '/analyze');
+assert.equal(loginDestination('/pricing'), '/pricing');
 assert.equal(loginDestination('https://example.com'), '/mypage');
 assert.equal(loginDestination('//example.com'), '/mypage');
 assert.equal(loginDestination(null), '/mypage');

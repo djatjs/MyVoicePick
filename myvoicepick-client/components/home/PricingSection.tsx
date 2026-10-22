@@ -1,168 +1,80 @@
-'use client';
+"use client";
 
-import React from 'react';
-import { MvpButton } from '../mvp/MvpButton';
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
+import Link from 'next/link';
 import { Check } from 'lucide-react';
 import { TossPaymentModal } from '../mvp/TossPaymentModal';
 
 export function PricingSection() {
   const [isModalOpen, setIsModalOpen] = useState(false);
-  const [selectedPlan, setSelectedPlan] = useState('PRO');
+  const [checking, setChecking] = useState(false);
+  const [message, setMessage] = useState('');
 
-  const handlePaymentClick = async (plan: string) => {
+  async function openPayment() {
+    if (checking) return;
     const token = localStorage.getItem('accessToken');
     if (!token) {
-      alert('로그인이 필요한 서비스입니다. 로그인 페이지로 이동합니다.');
+      sessionStorage.setItem('loginReturnTo', '/pricing');
       window.location.href = '/login';
       return;
     }
-    
+    setChecking(true);
+    setMessage('');
     try {
-      const res = await fetch('/api/v1/users/me', {
-        headers: { 'Authorization': `Bearer ${token}` }
-      });
-      if (res.ok) {
-        const data = await res.json();
-        if (data.plan === 'PRO' || data.plan === 'STUDIO') {
-          alert('이미 상위 플랜을 구독 중입니다!');
-          return;
-        }
+      const response = await fetch('/api/v1/users/me', { headers: { Authorization: `Bearer ${token}` } });
+      if (response.status === 401) {
+        localStorage.removeItem('accessToken');
+        sessionStorage.setItem('loginReturnTo', '/pricing');
+        window.location.href = '/login';
+        return;
       }
-    } catch (e) {
-      console.error('Failed to fetch user plan:', e);
+      if (!response.ok) throw new Error('계정 정보를 확인하지 못했습니다. 잠시 후 다시 시도해주세요.');
+      const account = await response.json();
+      if (account.plan === 'PRO' || account.plan === 'STUDIO') {
+        setMessage('이미 Pro 기능을 이용할 수 있는 플랜입니다. 마이페이지에서 내 결과를 확인하세요.');
+        return;
+      }
+      setIsModalOpen(true);
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : '계정 정보를 확인하지 못했습니다.');
+    } finally {
+      setChecking(false);
     }
+  }
 
-    setSelectedPlan(plan);
-    setIsModalOpen(true);
-  };
   return (
-    <section id="pricing" className="mvp-section pb-16 md:pb-24 relative z-10 scroll-mt-20">
-      <div className="mvp-container">
-        {/* Header */}
-        <div className="text-center max-w-5xl mx-auto mb-12 md:mb-20">
-          <span className="mvp-gradient-text text-xs font-black uppercase tracking-[0.3em] mb-4 block">Simple Pricing</span>
-          <h2 className="text-3xl md:text-5xl font-black mb-4 md:mb-6">Scale Your Sound.</h2>
-          <p className="text-base md:text-lg text-[var(--mvp-text-muted)] break-keep leading-relaxed md:whitespace-nowrap max-w-2xl mx-auto">
-            나에게 꼭 맞는 플랜을 선택하세요. AI 기반의 아티스트 매칭부터 전문가급 레코딩 가이드까지 제공합니다.
-          </p>
-        </div>
-
-        {/* Pricing Grid */}
-        <div className="grid md:grid-cols-3 gap-6 md:gap-8">
-          {/* Free Plan */}
-          <div className="mvp-glass-card p-7 md:p-10 flex flex-col h-full border-white/5 hover:-translate-y-2 transition-transform duration-500">
-            <div className="mb-8">
-              <h3 className="text-2xl font-bold mb-2">Free</h3>
-              <div className="flex items-end gap-1">
-                <span className="text-4xl font-black">₩0</span>
-                <span className="text-[var(--mvp-text-muted)] mb-1 text-xs">/월</span>
-              </div>
-            </div>
-            <ul className="space-y-6 mb-10 flex-1">
-              <li className="flex items-start gap-3 text-sm">
-                <Check className="w-5 h-5 text-indigo-400 shrink-0" />
-                <div>
-                  <p className="font-bold">일일 3회 분석</p>
-                  <p className="text-xs text-[var(--mvp-text-muted)] leading-snug mt-0.5">가벼운 체험을 위한 기본 횟수 제공</p>
-                </div>
-              </li>
-              <li className="flex items-start gap-3 text-sm">
-                <Check className="w-5 h-5 text-indigo-400 shrink-0" />
-                <div>
-                  <p className="font-bold">기본 아티스트 매칭</p>
-                  <p className="text-xs text-[var(--mvp-text-muted)] leading-snug mt-0.5">대중적인 인기 아티스트 TOP 10 대조</p>
-                </div>
-              </li>
-              <li className="flex items-start gap-3 text-sm text-[var(--mvp-text-muted)]">
-                <Check className="w-5 h-5 text-white/10 shrink-0" />
-                <div>
-                  <p className="font-bold line-through">정밀 DNA 리포트</p>
-                  <p className="text-xs leading-snug mt-0.5">Pro 플랜 전용 기능</p>
-                </div>
-              </li>
-            </ul>
-            <MvpButton variant="outline" className="w-full" onClick={() => window.location.href = '/analyze'}>시작하기</MvpButton>
-          </div>
-
-          {/* Pro Plan */}
-          <div className="mvp-glass-card p-7 md:p-10 flex flex-col h-full border-indigo-500/30 relative hover:-translate-y-2 transition-transform duration-500 shadow-[0_0_40px_rgba(99,102,241,0.1)]">
-            <div className="absolute top-0 left-1/2 -translate-x-1/2 -translate-y-1/2 bg-indigo-500 text-white px-4 py-1 rounded-full text-xs font-black uppercase tracking-widest shadow-[0_0_20px_rgba(99,102,241,0.5)]">
-              Most Popular
-            </div>
-            <div className="mb-8">
-              <h3 className="text-2xl font-bold mb-2">Pro</h3>
-              <div className="flex items-end gap-1">
-                <span className="text-4xl font-black">₩19,000</span>
-                <span className="text-[var(--mvp-text-muted)] mb-1 text-xs">/월</span>
-              </div>
-            </div>
-            <ul className="space-y-6 mb-10 flex-1">
-              <li className="flex items-start gap-3 text-sm">
-                <Check className="w-5 h-5 text-indigo-400 shrink-0" />
-                <div>
-                  <p className="font-bold">무제한 보컬 분석</p>
-                  <p className="text-xs text-[var(--mvp-text-muted)] leading-snug mt-0.5">횟수 제한 없이 마음껏 분석 가능</p>
-                </div>
-              </li>
-              <li className="flex items-start gap-3 text-sm">
-                <Check className="w-5 h-5 text-indigo-400 shrink-0" />
-                <div>
-                  <p className="font-bold">전체 아티스트 데이터베이스</p>
-                  <p className="text-xs text-[var(--mvp-text-muted)] leading-snug mt-0.5">5만 명 이상의 국내외 전체 DB 정밀 매칭</p>
-                </div>
-              </li>
-              <li className="flex items-start gap-3 text-sm">
-                <Check className="w-5 h-5 text-indigo-400 shrink-0" />
-                <div>
-                  <p className="font-bold">128포인트 DNA 분석</p>
-                  <p className="text-xs text-[var(--mvp-text-muted)] leading-snug mt-0.5">음역대, 배음 구조 등 전문 보컬 지표 제공</p>
-                </div>
-              </li>
-            </ul>
-            <MvpButton variant="primary" className="w-full" onClick={() => handlePaymentClick('PRO')}>구독하기</MvpButton>
-          </div>
-
-          {/* Studio Plan */}
-          <div className="mvp-glass-card p-7 md:p-10 flex flex-col h-full border-white/5 hover:-translate-y-2 transition-transform duration-500">
-            <div className="mb-8">
-              <h3 className="text-2xl font-bold mb-2">Studio</h3>
-              <div className="flex items-end gap-1">
-                <span className="text-4xl font-black">₩49,000</span>
-                <span className="text-[var(--mvp-text-muted)] mb-1 text-xs">/월</span>
-              </div>
-            </div>
-            <ul className="space-y-6 mb-10 flex-1">
-              <li className="flex items-start gap-3 text-sm">
-                <Check className="w-5 h-5 text-indigo-400 shrink-0" />
-                <div>
-                  <p className="font-bold">Pro 플랜의 모든 기능</p>
-                </div>
-              </li>
-              <li className="flex items-start gap-3 text-sm">
-                <Check className="w-5 h-5 text-indigo-400 shrink-0" />
-                <div>
-                  <p className="font-bold">고음질 멀티트랙 레코딩</p>
-                  <p className="text-xs text-[var(--mvp-text-muted)] leading-snug mt-0.5">작곡/편집용 고품질 보컬 파일 추출</p>
-                </div>
-              </li>
-              <li className="flex items-start gap-3 text-sm">
-                <Check className="w-5 h-5 text-indigo-400 shrink-0" />
-                <div>
-                  <p className="font-bold">실시간 피치 피드백</p>
-                  <p className="text-xs text-[var(--mvp-text-muted)] leading-snug mt-0.5">연습 중 실시간 음정/발성 교정 가이드</p>
-                </div>
-              </li>
-            </ul>
-            <MvpButton variant="outline" className="w-full">준비중</MvpButton>
-          </div>
-        </div>
+    <>
+      <header className="workspace-heading pricing-heading">
+        <p className="workspace-kicker">내 목소리에 맞는 이용 방식</p>
+        <h1>먼저 발견하고,<br />필요한 만큼 더 깊게.</h1>
+        <p className="workspace-description">가수 매칭과 추천곡은 무료로 경험하고,<br className="hidden sm:block" /> 연습 가이드가 필요할 때 Pro를 선택하세요.</p>
+      </header>
+      <aside className="pricing-test-note"><strong>현재 테스트 결제로 운영 중입니다.</strong><p>아래는 플랜 기준 요금입니다. 현재 결제 모듈에는 테스트 금액 100원이 적용되어 있으며, 결제 전 표시 금액을 확인해주세요.</p></aside>
+      <div className="pricing-plans">
+        <section className="workspace-panel pricing-plan">
+          <div><p className="workspace-kicker">내 목소리가 궁금할 때</p><h2>Free</h2><p className="pricing-price">0<span>원</span></p><p className="workspace-note">보컬 분석의 첫 경험</p></div>
+          <ul><li><Check aria-hidden="true" /> 닮은 가수와 음색 유사도</li><li><Check aria-hidden="true" /> 분석 결과에 따른 추천곡</li><li><Check aria-hidden="true" /> 목소리 특징과 분석 기록</li></ul>
+          <Link href="/analyze" className="workspace-secondary">무료로 분석 시작하기</Link>
+        </section>
+        <section className="workspace-panel pricing-plan pricing-plan-pro">
+          <div><p className="workspace-kicker">다음 연습의 힌트가 필요할 때</p><h2>Pro</h2><p className="pricing-price">19,000<span>원 / 월 기준</span></p><p className="workspace-note">기본 분석에 연습 가이드를 더해요</p></div>
+          <ul><li><Check aria-hidden="true" /> Free의 기본 분석 기능</li><li><Check aria-hidden="true" /> 추천 키와 보컬 연습 가이드</li><li><Check aria-hidden="true" /> 추가 추천곡 플레이리스트</li></ul>
+          <button className="workspace-primary" disabled={checking} onClick={openPayment}>{checking ? '계정 확인 중' : 'Pro 테스트 결제하기'}</button>
+        </section>
       </div>
-      <TossPaymentModal
-        isOpen={isModalOpen}
-        onClose={() => setIsModalOpen(false)}
-        plan={selectedPlan}
-      />
-    </section>
+      {message && <div className="pricing-message" role="status"><p>{message}</p><Link href="/mypage" className="workspace-inline-link">마이페이지 보기</Link></div>}
+      <section className="pricing-comparison" aria-labelledby="pricing-compare-title">
+        <h2 id="pricing-compare-title" className="workspace-section-title">어떤 차이가 있나요?</h2>
+        <table><caption className="sr-only">Free와 Pro 제공 기능 비교</caption><thead><tr><th scope="col">제공 기능</th><th scope="col">Free</th><th scope="col">Pro</th></tr></thead><tbody>
+          <tr><th scope="row">가수 매칭 · 추천곡</th><td>제공</td><td>제공</td></tr>
+          <tr><th scope="row">목소리 특징 · 분석 기록</th><td>제공</td><td>제공</td></tr>
+          <tr><th scope="row">추천 키 · 연습 가이드</th><td>미제공</td><td>제공</td></tr>
+          <tr><th scope="row">추가 추천 플레이리스트</th><td>미제공</td><td>제공</td></tr>
+        </tbody></table>
+        <p className="workspace-note">분석 결과와 제공되는 세부 정보는 업로드한 음성과 분석 데이터에 따라 달라집니다. 분석이 진행 중인 동안에는 새 분석을 시작할 수 없습니다.</p>
+      </section>
+      <aside className="pricing-studio"><div><p className="workspace-kicker">Studio · 준비 중</p><h2>더 넓은 음악 작업을 위한 다음 단계</h2><p>아직 신청할 수 없는 플랜입니다. 제공 기능과 요금은 출시 시 안내하겠습니다.</p></div><button className="workspace-secondary" disabled>준비 중</button></aside>
+      <TossPaymentModal isOpen={isModalOpen} onClose={() => setIsModalOpen(false)} plan="PRO" />
+    </>
   );
 }

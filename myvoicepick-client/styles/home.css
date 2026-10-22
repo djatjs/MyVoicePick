@@ -14,29 +14,6 @@
 .home-text-link { display: inline-block; color: #e0e3f5; font-size: 14px; text-decoration: underline; text-underline-offset: 6px; text-decoration-color: #64748b; }
 .home-text-link:hover { text-decoration-color: #c4b5fd; }
 .home-upload-note { color: #94a3b8; font-size: 12px; margin-top: 17px; }
-.home-result { scroll-margin-top: 110px; background: #1e293b; border: 1px solid #39465e; border-radius: 20px; box-shadow: 0 24px 70px #02061755; overflow: hidden; }
-.home-result-top { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 23px 26px; border-bottom: 1px solid #ffffff0d; font-size: 13px; }
-.home-result-top > span:first-child { display: flex; align-items: center; gap: 9px; }
-.home-example-label { color: #c4b5fd; background: #8b5cf61a; padding: 4px 9px; border-radius: 5px; font-size: 11px; }
-.home-wave { padding: 27px 0 20px; background: #172136; text-align: center; }
-.home-wave svg { width: 100%; height: 115px; }
-.home-wave-grid { fill: none; stroke: #94a3b812; stroke-width: 1; }
-.home-wave-line { fill: none; stroke: #a5a6fb; stroke-width: 2; stroke-linejoin: round; }
-.home-wave > span { display: block; color: #aab7ca; font-size: 11px; margin-top: 15px; }
-.home-match { display: flex; align-items: center; justify-content: space-between; gap: 20px; padding: 28px; }
-.home-result-label { color: #b5b9d8; font-size: 12px; margin-bottom: 7px; }
-.home-match h2 { font-size: 36px; font-weight: 650; letter-spacing: -.04em; margin-bottom: 8px; }
-.home-match p:last-child, .home-track p:last-child { font-size: 12px; color: #aab7ca; }
-.home-score { display: flex; flex-direction: column; align-items: flex-end; }
-.home-score strong { color: #c4b5fd; font-size: 48px; font-weight: 600; line-height: 1.2; letter-spacing: -.06em; font-variant-numeric: tabular-nums; }
-.home-score strong span { font-size: 23px; margin-left: 3px; }
-.home-score > span { color: #b5b9d8; font-size: 12px; margin-top: 7px; }
-.home-track { display: flex; align-items: center; gap: 15px; margin: 0 26px; border-top: 1px solid #ffffff12; padding: 23px 0; }
-.home-track-icon { display: flex; align-items: center; justify-content: center; width: 58px; height: 64px; flex-shrink: 0; color: #c4b5fd; border-radius: 7px; background: #353653; }
-.home-track h3 { font-size: 17px; font-weight: 600; margin-bottom: 3px; }
-.home-track .home-result-label { margin-bottom: 3px; font-size: 10px; }
-.home-track-tag { margin-left: auto; color: #aab7ca; font-size: 11px; }
-.home-example-note { padding: 0 26px 22px; color: #aab7ca; font-size: 11px; line-height: 1.7; word-break: keep-all; }
 .home-section { padding-top: 72px; padding-bottom: 72px; scroll-margin-top: 80px; }
 .home-section-heading h2, .home-pricing h2, .home-closing h2 { font-size: clamp(30px, 3.4vw, 43px); line-height: 1.4; font-weight: 650; letter-spacing: -.045em; word-break: keep-all; }
 .home-features { display: grid; grid-template-columns: repeat(3, 1fr); gap: 52px; margin-top: 55px; }
@@ -75,11 +52,6 @@
   .home-description { font-size: 16px; }
   .home-actions { margin-top: 27px; }
   .home-primary { padding: 16px 20px; }
-  .home-result { max-width: 520px; width: 100%; }
-  .home-result-top { padding: 18px 20px; }
-  .home-match { padding: 23px 20px; }
-  .home-track { margin: 0 20px; }
-  .home-example-note { padding-left: 20px; padding-right: 20px; }
   .home-section { padding-top: 60px; padding-bottom: 60px; }
   .home-features { grid-template-columns: 1fr; gap: 30px; margin-top: 32px; }
   .home-features svg { margin-bottom: 16px; }

@@ -1,4 +1,4 @@
-import { AudioLines, Music2 } from 'lucide-react';
+import { VocalMatchSummary } from './VocalMatchSummary';
 
 export interface MatchResult {
   title: string;
@@ -23,20 +23,8 @@ export function AnalysisResult({ result, onUpgrade }: { result: MatchResult; onU
   const hasPoints = points?.length === 128 && points.every(Number.isFinite);
   return (
     <div className="workspace-result">
-      <div className="workspace-result-grid">
-        <section className="workspace-panel workspace-artist">
-          <p className="workspace-kicker"><AudioLines size={18} aria-hidden="true" /> 나와 닮은 가수</p>
-          <h2>{result.artist}</h2>
-          <div className="workspace-similarity"><strong>{result.similarityScore ?? '—'}<span>{result.similarityScore != null ? '%' : ''}</span></strong><span>음색 유사도</span></div>
-          <p className="workspace-note">목소리 특징을 비교한 값으로, 노래 실력의 점수가 아닙니다.</p>
-          {result.voiceTags && <div className="workspace-tags">{result.voiceTags.map(tag => <span key={tag}>{tag}</span>)}</div>}
-        </section>
-        <section className="workspace-panel workspace-song">
-          <p className="workspace-kicker"><Music2 size={18} aria-hidden="true" /> 내게 어울리는 추천곡</p>
-          <div><h2>{result.title}</h2><p className="workspace-description">{result.artist}</p></div>
-          {result.previewUrl ? <a className="workspace-primary" href={result.previewUrl} target="_blank" rel="noopener noreferrer">미리듣기 <span className="sr-only">(새 창)</span></a> : <button className="workspace-primary" disabled>미리듣기를 제공하지 않는 곡입니다</button>}
-        </section>
-      </div>
+      <VocalMatchSummary result={result} />
+      {!!result.voiceTags?.length && <div className="workspace-tags">{result.voiceTags.map(tag => <span key={tag}>{tag}</span>)}</div>}
       {(result.recommendReason || result.vocalPersona) && <section className="workspace-explanation"><p className="workspace-kicker">이 곡을 추천한 이유</p>{result.vocalPersona && <h3>{result.vocalPersona}</h3>}<p>{result.recommendReason}</p></section>}
       <section className="workspace-panel">
         <h2 className="workspace-section-title">내 목소리의 특징</h2>

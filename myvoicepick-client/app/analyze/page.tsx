@@ -1,3 +1,4 @@
+import '../../styles/vocal-summary.css';
 import { Suspense } from 'react';
 import '../../styles/mvp-design.css';
 import '../../styles/workspace.css';

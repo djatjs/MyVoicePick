@@ -10,5 +10,5 @@ export async function verifyAnalysisSession(token: string | null, request: typeo
 }
 
 export function loginDestination(saved: string | null) {
-  return saved === '/analyze' ? '/analyze' : '/mypage';
+  return saved === '/analyze' || saved === '/pricing' ? saved : '/mypage';
 }

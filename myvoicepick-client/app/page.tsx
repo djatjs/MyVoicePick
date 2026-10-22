@@ -1,3 +1,4 @@
+import '../styles/vocal-summary.css';
 import Link from 'next/link';
 import '../styles/mvp-design.css';
 import '../styles/home.css';
