@@ -7,7 +7,7 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
-    "test": "node tests/analysis-result.test.mjs"
+    "test": "node tests/analysis-result.test.mjs && node tests/analysis-session.test.mjs"
   },
   "dependencies": {
     "@tosspayments/payment-sdk": "^1.9.2",

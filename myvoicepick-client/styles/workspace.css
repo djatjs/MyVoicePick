@@ -8,6 +8,8 @@
 .workspace-note { color: #aab7ca; font-size: 12px; line-height: 1.8; margin-top: 16px; word-break: keep-all; }
 .workspace-heading { margin-bottom: 32px; }
 .workspace-heading .workspace-description { margin-top: 16px; }
+.workspace-analysis-start { max-width: 960px; margin: 0 auto; }
+.workspace-analysis-start .workspace-heading { margin-bottom: 24px; }
 .workspace-primary, .workspace-secondary { display: inline-flex; align-items: center; justify-content: center; min-height: 48px; padding: 13px 23px; border-radius: 10px; font-size: 14px; font-weight: 600; cursor: pointer; transition: background .2s; }
 .workspace-primary { color: #fff; background: #6366f1; border: 1px solid transparent; }
 .workspace-primary:hover { background: #5558df; }
@@ -66,7 +68,8 @@
 .workspace-upload .workspace-description { max-width: 50ch; margin: 14px auto 24px; }
 .workspace-upload .workspace-inline-link { margin-left: 20px; }
 .workspace-dragging { border-color: #a5a6fb; background: #6366f115; }
-.workspace-upload-help { display: grid; grid-template-columns: 1fr 1fr; gap: 40px; max-width: 960px; margin: 28px auto 0; }
+.workspace-upload-help { display: flex; align-items: center; justify-content: space-between; gap: 24px; max-width: 960px; margin: 24px auto 0; }
+.workspace-upload-help > a { flex-shrink: 0; }
 .workspace-upload-help h3 { font-size: 14px; font-weight: 600; margin-bottom: 9px; }
 .workspace-upload-help p { color: #aab7ca; font-size: 13px; line-height: 1.8; }
 .workspace-upload-help a { color: #c4b5fd; text-decoration: underline; text-underline-offset: 4px; }
@@ -104,6 +107,7 @@
   .workspace-login { padding-top: 44px; padding-bottom: 56px; }
   .workspace-login h1 { font-size: 33px; }
   .workspace-upload { padding: 34px 20px; }
+  .workspace-upload-help { align-items: flex-start; flex-direction: column; gap: 14px; }
   .workspace-upload h2 { font-size: 20px; }
   .workspace-upload .workspace-primary { width: 100%; }
   .workspace-upload .workspace-inline-link { display: block; margin: 20px 0 0; }

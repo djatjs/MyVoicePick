@@ -1,5 +1,6 @@
 'use client';
 
+import { loginDestination } from '../../../lib/analysis-session';
 import { useEffect, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 
@@ -12,7 +13,9 @@ function LoginSuccessContent() {
 
     if (token) {
       localStorage.setItem('accessToken', token);
-      router.replace('/mypage');
+      const destination = loginDestination(sessionStorage.getItem('loginReturnTo'));
+      sessionStorage.removeItem('loginReturnTo');
+      router.replace(destination);
     } else {
       router.replace('/login');
     }

@@ -1,5 +1,6 @@
 'use client';
 
+import { loginDestination } from '../../lib/analysis-session';
 import { useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import '../../styles/mvp-design.css';
@@ -13,7 +14,9 @@ export default function LoginPage() {
 
   useEffect(() => {
     if (localStorage.getItem('accessToken')) {
-      router.replace('/mypage');
+      const destination = loginDestination(sessionStorage.getItem('loginReturnTo'));
+      sessionStorage.removeItem('loginReturnTo');
+      router.replace(destination);
     }
   }, [router]);
 
