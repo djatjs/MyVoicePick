@@ -6,6 +6,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
+import org.springframework.web.server.ResponseStatusException;
 
 /**
  * 백엔드 애플리케이션 전반에서 던져지는 예외(Exception)들을 한 곳에서 낚아채어(Catch),
@@ -30,6 +31,17 @@ public class GlobalExceptionHandler {
         
         ErrorResponse response = ErrorResponse.of("BAD_REQUEST", e.getMessage());
         return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(response);
+    }
+
+    /**
+     * 상태 코드를 직접 정해 던진 예외 (예: 진행 중 작업이 있을 때 429).
+     * 아래 RuntimeException 처리기에 잡히면 500이 되므로 따로 둔다.
+     */
+    @ExceptionHandler(ResponseStatusException.class)
+    public ResponseEntity<ErrorResponse> handleResponseStatusException(ResponseStatusException e) {
+        log.warn("[{}] {}", e.getStatusCode(), e.getReason());
+        return ResponseEntity.status(e.getStatusCode())
+                .body(ErrorResponse.of(String.valueOf(e.getStatusCode().value()), e.getReason()));
     }
 
     /**

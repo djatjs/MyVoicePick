@@ -42,6 +42,9 @@ public class AnalysisController {
         User user = userRepository.findByEmail(userEmail)
                 .orElseThrow(() -> new RuntimeException("User not found: " + userEmail));
 
+        // 진행 중인 작업이 있으면 업로드 전에 거절한다 (429)
+        analysisService.checkNoActiveTask(user.getId());
+
         // 3. S3에 실제 파일 업로드
         String s3Key = s3Uploader.uploadFile(file);
 

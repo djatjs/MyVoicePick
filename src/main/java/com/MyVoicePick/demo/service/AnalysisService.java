@@ -1,6 +1,7 @@
 package com.MyVoicePick.demo.service;
 
 import com.MyVoicePick.demo.dto.TaskStatusResponse;
+import com.MyVoicePick.demo.entity.AnalysisStatus;
 import com.MyVoicePick.demo.entity.AnalysisTask;
 import com.MyVoicePick.demo.entity.User;
 import com.MyVoicePick.demo.repository.AnalysisTaskRepository;
@@ -10,12 +11,18 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.redis.core.StringRedisTemplate;
+import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.PlatformTransactionManager;
+import org.springframework.transaction.TransactionDefinition;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.transaction.support.TransactionSynchronization;
 import org.springframework.transaction.support.TransactionSynchronizationManager;
+import org.springframework.transaction.support.TransactionTemplate;
+import org.springframework.web.server.ResponseStatusException;
 
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 
 /**
@@ -41,6 +48,7 @@ public class AnalysisService {
     private final StringRedisTemplate stringRedisTemplate;
     private final ObjectMapper objectMapper;
     private final S3Uploader s3Uploader;
+    private final PlatformTransactionManager transactionManager;
 
     /**
      * 클라이언트의 분석 요청을 접수하고 대기 상태(PENDING)의 작업을 생성합니다.
@@ -96,18 +104,33 @@ public class AnalysisService {
             // [개선] 직렬화 예외나 Redis 연결 에러 발생 시, Task 상태를 즉시 FAILED로 변경
             log.error("[AnalysisService] Redis 발행 실패! 파이썬 워커로 전달되지 않았습니다. taskUuid: {}", taskUuid, e);
             
-            // 새 트랜잭션을 열어 상태 업데이트
             handlePublishFailure(taskUuid);
         }
     }
 
-    @Transactional(propagation = org.springframework.transaction.annotation.Propagation.REQUIRES_NEW)
-    public void handlePublishFailure(String taskUuid) {
-        analysisTaskRepository.findByTaskUuid(taskUuid).ifPresent(task -> {
+    // afterCommit 안에서는 끝난 트랜잭션이 아직 묶여 있어 그냥 저장하면 커밋되지 않는다.
+    // 같은 클래스 안 호출이라 @Transactional(REQUIRES_NEW)도 프록시를 거치지 않아 무시되므로, 새 트랜잭션을 직접 연다.
+    private void handlePublishFailure(String taskUuid) {
+        TransactionTemplate tx = new TransactionTemplate(transactionManager);
+        tx.setPropagationBehavior(TransactionDefinition.PROPAGATION_REQUIRES_NEW);
+        tx.executeWithoutResult(status -> analysisTaskRepository.findByTaskUuid(taskUuid).ifPresent(task -> {
             task.failTask();
-            analysisTaskRepository.save(task);
             log.info("[AnalysisService] Task 상태를 FAILED로 업데이트 완료. taskUuid: {}", taskUuid);
-        });
+        }));
+    }
+
+    /**
+     * 아직 끝나지 않은(PENDING, PROCESSING) 작업이 있으면 새 요청을 받지 않는다.
+     * 워커가 한 줄로 처리하므로 한 사용자가 큐를 채우면 다른 사용자의 작업이 30분을 넘겨 FAILED가 된다.
+     * S3 업로드 전에 부른다.
+     */
+    public void checkNoActiveTask(Long userId) {
+        // shortcut: 확인과 저장 사이에 같은 사용자의 동시 요청이 둘 다 통과할 수 있음. 남용이 보이면 사용자 행 잠금으로 바꿀 것
+        if (analysisTaskRepository.existsByUserIdAndStatusIn(userId,
+                List.of(AnalysisStatus.PENDING, AnalysisStatus.PROCESSING))) {
+            throw new ResponseStatusException(HttpStatus.TOO_MANY_REQUESTS,
+                    "이전 분석이 아직 진행 중입니다. 끝난 뒤 다시 요청해주세요.");
+        }
     }
 
     /**

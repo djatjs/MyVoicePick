@@ -34,6 +34,9 @@ public interface AnalysisTaskRepository extends JpaRepository<AnalysisTask, Long
      */
     java.util.List<AnalysisTask> findAllByUserIdOrderByCreatedAtDesc(Long userId);
 
+    boolean existsByUserIdAndStatusIn(Long userId,
+            java.util.Collection<com.MyVoicePick.demo.entity.AnalysisStatus> statuses);
+
     java.util.List<AnalysisTask> findByStatusInAndCreatedAtBefore(
             java.util.Collection<com.MyVoicePick.demo.entity.AnalysisStatus> statuses, java.time.LocalDateTime before);
 }

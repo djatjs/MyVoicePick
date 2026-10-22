@@ -10,6 +10,7 @@ import java.util.Optional;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.data.redis.core.StringRedisTemplate;
+import org.springframework.transaction.PlatformTransactionManager;
 
 import com.MyVoicePick.demo.dto.TaskStatusResponse;
 import com.MyVoicePick.demo.entity.AnalysisStatus;
@@ -27,7 +28,7 @@ class AnalysisServiceStatusTest {
     @BeforeEach
     void setUp() {
         service = new AnalysisService(mock(UserRepository.class), taskRepository, mock(StringRedisTemplate.class),
-                new ObjectMapper(), mock(S3Uploader.class));
+                new ObjectMapper(), mock(S3Uploader.class), mock(PlatformTransactionManager.class));
         User owner = mock(User.class);
         when(owner.getEmail()).thenReturn("owner@example.com");
         when(owner.getPlan()).thenReturn(com.MyVoicePick.demo.entity.UserPlan.values()[0]);
