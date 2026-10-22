@@ -7,9 +7,9 @@ import { Menu, X } from 'lucide-react';
 import { MvpButton } from './MvpButton';
 
 const NAV_LINKS = [
-  { href: '/#features', label: 'Features' },
-  { href: '/#guide', label: 'Guide' },
-  { href: '/#pricing', label: 'Pricing' },
+  { href: '/#features', label: '분석 소개' },
+  { href: '/#guide', label: '이용 방법' },
+  { href: '/#pricing', label: '요금제' },
 ];
 
 export const MvpNav: React.FC = () => {
@@ -62,10 +62,10 @@ export const MvpNav: React.FC = () => {
         ) : (
           <>
             <Link href="/login">
-              <MvpButton variant="ghost" size="md">Log In</MvpButton>
+              <MvpButton variant="ghost" size="md">로그인</MvpButton>
             </Link>
             <Link href="/analyze">
-              <MvpButton variant="primary" size="md">Get Started</MvpButton>
+              <MvpButton variant="primary" size="md">내 목소리 분석하기</MvpButton>
             </Link>
           </>
         )}
@@ -94,7 +94,7 @@ export const MvpNav: React.FC = () => {
             {isLoggedIn ? (
               <Link href="/mypage" onClick={closeMenu} className="py-3.5 border-b border-white/5 text-indigo-400">마이페이지</Link>
             ) : (
-              <Link href="/login" onClick={closeMenu} className="py-3.5 border-b border-white/5 hover:text-white transition-colors">Log In</Link>
+              <Link href="/login" onClick={closeMenu} className="py-3.5 border-b border-white/5 hover:text-white transition-colors">로그인</Link>
             )}
           </div>
           <div className="mt-5">
@@ -102,7 +102,7 @@ export const MvpNav: React.FC = () => {
               <MvpButton variant="outline" size="md" className="w-full" onClick={handleLogout}>로그아웃</MvpButton>
             ) : (
               <Link href="/analyze" onClick={closeMenu} className="block">
-                <MvpButton variant="primary" size="md" className="w-full">Get Started</MvpButton>
+                <MvpButton variant="primary" size="md" className="w-full">내 목소리 분석하기</MvpButton>
               </Link>
             )}
           </div>

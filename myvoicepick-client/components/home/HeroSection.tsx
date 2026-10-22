@@ -1,47 +1,21 @@
-import React from 'react';
 import Link from 'next/link';
-import { MvpButton } from '../mvp/MvpButton';
+import { ArrowUpRight, AudioLines } from 'lucide-react';
+import { DashboardPreview } from './DashboardPreview';
 
 export function HeroSection() {
   return (
-    <section className="relative min-h-[78vh] md:min-h-[90vh] flex items-center justify-center py-14 md:pt-20 md:pb-0 overflow-hidden">
-      <div className="mvp-container relative z-10 text-center">
-        {/* 상단 뱃지 */}
-        <div className="inline-flex items-center gap-2 px-4 py-2 bg-white/5 rounded-full border border-white/10 mb-8 animate-in fade-in slide-in-from-top-4 duration-1000">
-          <span className="w-2 h-2 bg-indigo-500 rounded-full animate-pulse"></span>
-          <span className="text-xs font-bold uppercase tracking-widest text-indigo-300">Vocal Intelligence 2.0</span>
+    <section className="home-hero mvp-container">
+      <div>
+        <p className="home-intro"><AudioLines size={18} aria-hidden="true" /> 목소리로 찾는 나의 플레이리스트</p>
+        <h1>내 목소리에는<br />어떤 노래가<br />어울릴까?</h1>
+        <p className="home-description">노래한 파일을 올려보세요.<br />나와 닮은 가수부터 어울리는 곡까지,<br />내 목소리에서 찾아드립니다.</p>
+        <div className="home-actions">
+          <Link href="/analyze" className="home-primary">내 목소리 분석하기 <ArrowUpRight size={19} aria-hidden="true" /></Link>
+          <Link href="#result-example" className="home-text-link">결과 예시 살펴보기</Link>
         </div>
-
-        {/* 메인 타이틀 */}
-        <h1 className="text-4xl sm:text-6xl md:text-8xl mvp-display mb-6 md:mb-8 animate-in fade-in slide-in-from-bottom-8 duration-1000">
-          Discover Your <br />
-          <span className="mvp-gradient-text">Unique Voice DNA</span>
-        </h1>
-
-        {/* 서브 타이틀 */}
-        <p className="text-base sm:text-xl md:text-2xl text-[var(--mvp-text-muted)] font-medium max-w-5xl mx-auto mb-9 md:mb-12 leading-relaxed break-keep md:whitespace-nowrap animate-in fade-in duration-1000 delay-300">
-          당신의 음색 속에 숨겨진 코드를 분석하고, 어울리는 아티스트와 인생곡을 찾아드립니다.
-        </p>
-
-        {/* CTA 버튼 */}
-        <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-center gap-3 sm:gap-6 max-w-xs sm:max-w-none mx-auto animate-in fade-in duration-1000 delay-500">
-          <Link href="/analyze">
-            <MvpButton variant="primary" size="lg" className="w-full sm:w-auto text-base sm:text-lg px-8">
-              지금 분석 시작하기
-            </MvpButton>
-          </Link>
-          <Link href="/#guide">
-            <MvpButton variant="outline" size="lg" className="w-full sm:w-auto text-base sm:text-lg px-8">
-              이용 방법 보기
-            </MvpButton>
-          </Link>
-        </div>
+        <p className="home-upload-note">MP3 · WAV 파일 업로드</p>
       </div>
-
-      {/* 배경 조명 효과 (Ambient Glows) */}
-      <div className="absolute top-1/4 left-1/2 -translate-x-1/2 w-[800px] h-[800px] bg-indigo-600/10 blur-[120px] rounded-full -z-0 pointer-events-none"></div>
-      <div className="absolute top-1/2 left-1/4 w-[400px] h-[400px] bg-violet-600/5 blur-[100px] rounded-full -z-0 pointer-events-none"></div>
-      <div className="absolute bottom-0 right-1/4 w-[600px] h-[600px] bg-pink-600/5 blur-[120px] rounded-full -z-0 pointer-events-none"></div>
+      <DashboardPreview />
     </section>
   );
 }

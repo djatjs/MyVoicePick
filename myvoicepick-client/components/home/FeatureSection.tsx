@@ -1,63 +1,13 @@
-import React from 'react';
-import { Sparkles, Activity, Zap } from 'lucide-react';
-
-const FEATURES = [
-  {
-    icon: <Sparkles className="w-7 h-7 text-indigo-400" />,
-    title: "Precision Profiling",
-    description: "단 30초의 녹음으로 음역대, 배음 구조, 공명 등 수백 가지 보컬 특성을 분석합니다.",
-    bgClass: "bg-indigo-500/10",
-    borderClass: "border-indigo-500/20",
-    glowClass: "group-hover:shadow-[0_0_30px_rgba(99,102,241,0.2)]"
-  },
-  {
-    icon: <Activity className="w-7 h-7 text-violet-400" />,
-    title: "Artist Matching",
-    description: "당신의 보컬 DNA와 가장 유사한 프로 아티스트를 매칭하고 맞춤형 연습 곡을 추천합니다.",
-    bgClass: "bg-violet-500/10",
-    borderClass: "border-violet-500/20",
-    glowClass: "group-hover:shadow-[0_0_30px_rgba(139,92,246,0.2)]"
-  },
-  {
-    icon: <Zap className="w-7 h-7 text-pink-400" />,
-    title: "Instant Results",
-    description: "기다릴 필요 없습니다. 클라우드 기반 AI 분산 처리로 실시간에 가까운 분석 결과를 제공합니다.",
-    bgClass: "bg-pink-500/10",
-    borderClass: "border-pink-500/20",
-    glowClass: "group-hover:shadow-[0_0_30px_rgba(236,72,153,0.2)]"
-  }
-];
+import { AudioLines, Mic2, Music2 } from 'lucide-react';
 
 export function FeatureSection() {
   return (
-    <section id="features" className="mvp-section relative scroll-mt-20">
-      {/* 백그라운드 데코레이션 */}
-      <div className="absolute top-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-white/10 to-transparent"></div>
-      
-      <div className="mvp-container relative z-10">
-        <div className="text-center mb-10 md:mb-16">
-          <h2 className="text-3xl md:text-5xl font-black mb-4">Core <span className="mvp-gradient-text">Technologies</span></h2>
-          <p className="text-[var(--mvp-text-muted)] text-base md:text-lg max-w-2xl mx-auto break-keep">
-            최신 음향 공학 기술과 인공지능이 결합하여 당신의 목소리를 완벽하게 해독합니다.
-          </p>
-        </div>
-
-        <div className="grid md:grid-cols-3 gap-5 md:gap-8">
-          {FEATURES.map((feature, idx) => (
-            <div 
-              key={idx} 
-              className={`mvp-glass-card p-6 md:p-8 hover:border-white/20 transition-all duration-500 group hover:-translate-y-2 ${feature.glowClass}`}
-            >
-              <div className={`w-14 h-14 md:w-16 md:h-16 rounded-2xl flex items-center justify-center mb-5 md:mb-8 border transition-transform duration-500 group-hover:scale-110 group-hover:rotate-3 ${feature.bgClass} ${feature.borderClass}`}>
-                {feature.icon}
-              </div>
-              <h4 className="text-xl md:text-2xl font-bold mb-3 md:mb-4 tracking-tight">{feature.title}</h4>
-              <p className="text-[var(--mvp-text-muted)] text-sm md:text-base leading-relaxed break-keep">
-                {feature.description}
-              </p>
-            </div>
-          ))}
-        </div>
+    <section id="features" className="home-section mvp-container">
+      <div className="home-section-heading"><p className="home-intro">숫자 너머, 내 목소리를 이해하는 시간</p><h2>듣기만 했던 목소리를<br />조금 더 알게 되는 일.</h2></div>
+      <div className="home-features">
+        <article><AudioLines aria-hidden="true" /><h3>내 목소리의 특징</h3><p>음높이와 음성 특성을 분석한 결과를 확인하세요. 익숙한 내 목소리를 새로운 시선으로 볼 수 있습니다.</p></article>
+        <article><Mic2 aria-hidden="true" /><h3>나와 닮은 가수</h3><p>내 음성과 아티스트의 음색을 비교합니다. 유사도는 노래 실력의 점수가 아닌, 목소리 특징을 비교한 값입니다.</p></article>
+        <article><Music2 aria-hidden="true" /><h3>다음에 부를 노래</h3><p>분석 결과에 따른 추천곡을 만나보세요. 어떤 곡을 부를지 고민될 때 새로운 출발점이 되어줍니다.</p></article>
       </div>
     </section>
   );
