@@ -1,9 +1,6 @@
-# 실제 녹음으로 실행하는 선곡 분석 실험
+# 로컬 오디오 선곡 분석 v2
 
-기존 서비스와 DB를 수정하지 않고 `ai-worker/local_analysis.py`로 실행한다.
-Python 워커의 기존 의존성만 사용하며 AWS/S3/Redis/DB에 접속하지 않는다.
-
-## 실행
+DB/AWS에 연결하지 않는 실험 도구다. 기존 Python 워커 의존성을 사용한다.
 
 ```powershell
 $env:PYTHONUTF8='1'
@@ -11,46 +8,58 @@ $env:GEMINI_API_KEY='발급받은 키'
 ai-worker/venv/Scripts/python.exe ai-worker/local_analysis.py 'C:\audio\recording.mp3'
 ```
 
-또는 `ai-worker/.env`의 GEMINI_API_KEY / GOOGLE_API_KEY를 읽는다.
-키는 리포트나 로그에 저장하지 않는다. 실제 사용자 녹음을 사용할 때는 외부 전송 동의를 받아야 한다.
-기본 모델은 실제 API 모델 목록에서 확인한 `gemini-2.5-flash`이다.
-다른 사용 가능한 오디오 입력 모델은 `--model`로 지정할 수 있다.
+키는 ai-worker/.env에서도 읽는다. 로그/리포트에 키는 저장하지 않는다.
+개인 녹음의 외부 전송 동의를 받은 뒤 사용해야 한다.
 
-앞부분 최대 45초를 16kHz 모노 WAV로 변환해 Gemini에 직접 전송한다.
-파일명, 사용자 신원, DB 이력은 전송하지 않는다. API 이용료와 제공자의 데이터 처리 조건이 적용된다.
-파일 안의 제3자 목소리나 반주도 선택한 구간에 포함되면 같이 전송된다.
+## 처리
 
-```powershell
-# 외부 전송 없이 신호 측정과 HTML 생성
-ai-worker/venv/Scripts/python.exe ai-worker/local_analysis.py 'C:\audio\recording.mp3' --offline
-# 특정 구간만 선택 (최대 60초)
-ai-worker/venv/Scripts/python.exe ai-worker/local_analysis.py 'C:\audio\recording.mp3' --start 15 --seconds 30
-```
+1. 전체 입력을 Demucs htdemucs(shifts=0)로 분리하고 원본 SHA-256 기반 폴더에 캐시한다.
+2. 분리 보컬의 활동 프레임(RMS 최대 대비 -35dB 초과)이 가장 많은 45초 창을 선택한다.
+   동률이면 먼저 나온 창을 사용한다. 이 선택이 가장 대표적인 창이라는 뜻은 아니다.
+3. 선택한 분리 보컬을 pYIN 한 번으로 측정한다. 신뢰도 0.3 이상 프레임을 사용한다.
+4. 같은 시간대의 원본을 16kHz 모노 WAV로 Gemini에 보내 맥락을 유지한다.
+   전체 음원·파일명·사용자 신원은 전송하지 않는다. 선택 구간에 있는 반주/다른 목소리는 전송에 포함된다.
+5. 같은 모델·프롬프트·원본 구간으로 기본 3회 실행한다.
+
+`--start 17 --seconds 45`는 자동 선택을 수동으로 덮어쓴다.
+`--offline`은 외부 전송 없이 분리·선택·측정·HTML 생성만 실행한다.
+`--repeats 1`은 단일 실행이다. `--model`로 다른 오디오 모델을 비교할 수 있다.
+`--vocals '.../vocals.wav'`로 기존 전체 길이의 Demucs 출력을 재사용할 수 있다.
+원본과 같은 파일에서 생성된 스템이어야 하며 길이를 검증한다. 잘린 보컬은 사용할 수 없다.
 
 ## 결과
 
-`tmp/audio-analysis/<실행시각>/report.html` 및 `report.json`을 생성한다.
-HTML에는 분석한 음성이 내장되어 다시 들을 수 있다. 이 파일 자체가 개인 음성을 포함하므로 공유에 주의한다.
-출력 폴더는 Git에서 무시되는 tmp 아래에 있다. 각 실행은 별도 폴더를 사용한다.
+`tmp/audio-analysis/<실행시각>/report.html`과 report.json을 생성한다.
+HTML은 분석한 원본 구간 오디오를 내장하므로 공유할 때 개인정보에 주의한다.
+캐시와 리포트는 Git에서 무시되는 tmp 아래에 보관한다.
 
-- 로컬 측정: pYIN 1회, 유효 음높이 분포, 유효 F0 비율, 지속 구간, RMS, 클리핑 비율.
-- 모델 분석: 실제 소리에서 관측한 음색·프레이징·표현·녹음 조건과 근거 구간.
-- 모델과 프롬프트 버전, 사용 토큰 및 API 처리 시간을 기록한다.
-- 시간 범위와 응답 구조를 검증한다. 이는 내용의 사실성을 보장하지 않으며 사람이 들어 확인해야 한다.
-- API 실패 시 측정값과 실패 이유를 저장하고 종료 코드 1을 반환한다. 성공처럼 꾸미지 않는다.
+- 고정 항목: brightness/breathiness/roughness/thickness=low/medium/high/unknown,
+  intensity=soft/medium/strong/unknown, vibrato_use=none/occasional/frequent/unknown,
+  delivery=plain/emotional/rhythmic/powerful/mixed/unknown.
+- 각 항목에 confidence를 받는다. 이는 모델의 주관적 확신이지 검증된 확률이 아니다.
+- observations에 실제 초 단위 근거 구간을 유지한다. 시간 범위 검증은 내용의 사실성을 보장하지 않는다.
+- 사용자/곡 구분 없이 동일한 스키마와 프롬프트를 사용한다.
+- 모델·프롬프트/스키마 해시·분석 버전·토큰 사용량·API 시간·각 회차 결과를 기록한다.
+- 항목별 모든 회차 쌍의 값 일치율을 계산한다. 3회면 세 쌍이다.
+  unknown을 포함한 일치율과 unknown이 아닌 쌍의 일치율, unknown 개수를 따로 기록한다.
+- 일부 API 호출 실패는 실패 회차로 기록한다. 비교 가능한 성공 결과가 2개 미만이면 일치율은 null이다.
+  요청한 모든 회차가 성공한 것이 아니면 종료 코드 1이다.
+- 모델의 음역 수치 주장을 p10~p90과 대조해 어긋나면 conflict로 표시한다(2반음 실험 허용값).
+  '저음이 좋다'처럼 정량 대조 불가능한 주장은 unverifiable로 표시하고 측정값을 함께 보여준다.
+  편함·매력을 숫자로 입증하거나 성별별 절대 음역 경계를 임의로 만들지 않는다.
 
-이 도구는 원본/반주 포함 녹음도 그대로 분석한다. 분리 전후 효과를 검증하기 전까지 자동 Demucs 처리는 하지 않는다.
-반주가 있는 파일에서 측정 F0는 사용자 보컬만의 값이라고 보장할 수 없다.
-유효 F0가 없는 파일은 음높이 값을 null로 남긴다. 무음·3초 미만은 거절한다.
-모델 confidence는 검증된 확률이 아니다. 미리 정한 F0 확률 임계값 역시 운영 검증 전의 실험값이다.
+voiced_ratio는 보컬 활동 프레임 기준이다. 전체 길이 기준 값도 full_frame_voiced_ratio로 보관한다.
+활동 자체가 적은 녹음과 활동 대비 F0 검출이 적은 녹음을 구분할 수 있다.
+RMS 활동 검출은 실제 노래 구간의 정답 검출기가 아니다. 전주·반주 잔여음·잔향의 영향을 받는다.
 
-현재는 목소리 분석의 실제 출력부터 확인하는 단계다. 가창 음색 임베딩·카탈로그 추천·키 제안은 연결하지 않았다.
-실제 출력의 정확도를 확인한 뒤 같은 분석 함수를 수집기/사용자 워커에 연결한다.
+원본에서 직접 측정하던 v1의 비율과 v2의 비율은 분모/전처리가 달라 직접 비교하면 안 된다.
+임베딩·추천 순위·키 제안·운영 연결은 아직 포함하지 않는다.
 
-## 검증
+## 테스트
 
 ```powershell
-ai-worker/venv/Scripts/python.exe -m unittest discover -s ai-worker -p test_local_analysis.py
+ai-worker/venv/Scripts/python.exe -m unittest discover -s ai-worker -p 'test_*.py'
 ```
 
-합성 음원의 음높이, 무음 거절, API 요청/응답 처리, 잘못된 근거 시간 거절, HTML 이스케이프를 검증한다.
+합성 음원, 무음/활동 구간 분모, 자동 창 선택, 항목 검증, 반복 일치율, 음역 충돌,
+HTML 이스케이프, 출처 중복 방지, pYIN 1회 실행을 검증한다.

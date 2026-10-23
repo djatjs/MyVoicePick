@@ -10,6 +10,7 @@ from sqlalchemy import create_engine
 from sqlalchemy import BigInteger
 from sqlalchemy.ext.compiler import compiles
 from sqlalchemy.orm import Session
+from sqlalchemy.exc import IntegrityError
 from database import Base
 from models import Song
 import data_collector as collector
@@ -40,7 +41,7 @@ class SongCatalogTest(unittest.TestCase):
         self.assertEqual(len(mfcc), 20)
         self.assertGreater(pitch, 0)
 
-    def test_save_and_reanalyze_preserves_editorial_notes(self):
+    def test_source_track_id_prevents_alias_duplicate(self):
         engine = create_engine('sqlite://')
         Base.metadata.create_all(engine)
         with Session(engine) as db:
@@ -50,8 +51,7 @@ class SongCatalogTest(unittest.TestCase):
             profile = {'scope': 'preview', 'feature_version': 'song-v1'}
             collector.save_song(db, entry, 220., [1.] * 20, profile)
             song = db.query(Song).one()
-            song.editorial_notes = '{"reviewed":true}'
-            db.commit()
+            entry['title'] = '다른 표기의 같은 곡'
             collector.save_song(db, entry, 230., [2.] * 20, profile)
             db.expire_all()
             song = db.query(Song).one()
@@ -59,7 +59,33 @@ class SongCatalogTest(unittest.TestCase):
             self.assertEqual(song.source_track_id, '123')
             self.assertEqual(json.loads(song.analysis_profile), profile)
             self.assertEqual(song.pitch, 230.)
-            self.assertEqual(song.editorial_notes, '{"reviewed":true}')
+
+    def test_pyin_runs_once_for_song_profile(self):
+        with patch.object(collector.librosa, 'pyin', wraps=collector.librosa.pyin) as pyin:
+            audio = .3 * np.sin(2 * np.pi * 220 * np.arange(16000 * 3) / 16000)
+            collector.AnalysisService.extract_audio_features(audio, 16000, include_song_profile=True)
+        self.assertEqual(pyin.call_count, 1)
+
+    def test_source_id_is_unique_at_database_boundary(self):
+        engine = create_engine('sqlite://')
+        Base.metadata.create_all(engine)
+        with Session(engine) as db:
+            db.add(Song(title='첫 곡', artist='가수', source_track_id='123'))
+            db.commit()
+            db.add(Song(title='별칭', artist='가수', source_track_id='123'))
+            with self.assertRaises(IntegrityError):
+                db.commit()
+            db.rollback()
+            self.assertEqual(db.query(Song).count(), 1)
+
+    def test_different_version_does_not_overwrite_source(self):
+        engine = create_engine('sqlite://')
+        Base.metadata.create_all(engine)
+        with Session(engine) as db:
+            collector.save_song(db, {'title': '곡', 'artist': '가수', 'source_track_id': '1'}, 220., [1.] * 20, {})
+            with self.assertRaisesRegex(ValueError, '다른 트랙 버전'):
+                collector.save_song(db, {'title': '곡', 'artist': '가수', 'source_track_id': '2'}, 330., [1.] * 20, {})
+            self.assertEqual(db.query(Song).one().source_track_id, '1')
 
     def test_extraction_rejects_insufficient_pitched_audio(self):
         with patch.object(collector.librosa, 'load', return_value=(np.ones(16000 * 12), 16000)), \

@@ -45,8 +45,7 @@ class Song(Base):
     mfcc_vector = Column(Text, nullable=True)
 
     genre = Column(String(100), nullable=True)
-    source_track_id = Column(String(100), nullable=True)
+    source_track_id = Column(String(100), nullable=True, unique=True)
     source_track_title = Column(String(255), nullable=True)
     source_track_url = Column(String(500), nullable=True)
     analysis_profile = Column(Text, nullable=True)
-    editorial_notes = Column(Text, nullable=True)

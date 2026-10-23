@@ -310,32 +310,13 @@ class AnalysisService:
         target_sr = 16000
         y_low = librosa.resample(y, orig_sr=sr, target_sr=target_sr) if sr != target_sr else y
         
-        # [개선] 노이즈 필터링: 일정 데시벨(dB) 이하의 무음 구간(침묵, 노이즈) 제거
-        # top_db=30은 최대 음량 기준 -30dB 이하를 침묵으로 간주하여 필터링
-        intervals = librosa.effects.split(y_low, top_db=30)
-        if len(intervals) > 0:
-            y_voiced = np.concatenate([y_low[start:end] for start, end in intervals])
-        else:
-            y_voiced = y_low  # 유효 구간이 없으면 원본 그대로 사용
-
-        if include_song_profile:
-            from song_features import summarize_pitch
-            observed_f0, _, _ = librosa.pyin(y_low, fmin=librosa.note_to_hz("C2"),
-                fmax=librosa.note_to_hz("C7"), sr=target_sr, hop_length=1024)
-            song_profile = summarize_pitch(observed_f0, 1024 / target_sr)
-            song_profile["duration_seconds"] = len(y) / sr
-
-        # 1. Pitch & Emotion (pyin 최적화: hop_length 늘림)
-        # 16kHz에서 hop_length=1024는 약 64ms 간격입니다.
-        # [개선] 노이즈가 제거된 y_voiced 를 사용하여 정확한 Pitch 분석
-        f0, _, _ = librosa.pyin(
-            y_voiced, 
-            fmin=librosa.note_to_hz('C2'), 
-            fmax=librosa.note_to_hz('C7'),
-            sr=target_sr,
-            hop_length=1024
-        )
-        valid_f0 = f0[~np.isnan(f0)]
+        # 시간축을 보존한 단일 F0로 평균과 분포를 함께 계산한다.
+        f0, voiced, probability = librosa.pyin(
+            y_low, fmin=librosa.note_to_hz('C2'), fmax=librosa.note_to_hz('C7'),
+            sr=target_sr, hop_length=256)
+        from song_features import vocal_pitch_profile
+        f0, song_profile = vocal_pitch_profile(y_low, target_sr, f0, voiced, probability, 256)
+        valid_f0 = f0[np.isfinite(f0)]
         avg_pitch = float(np.mean(valid_f0)) if valid_f0.size > 0 else 0.0
         emotion = float(np.std(valid_f0)) if valid_f0.size > 0 else 0.0
 

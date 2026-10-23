@@ -54,7 +54,7 @@ public class Song {
     @Column(length = 100)
     private String genre;
 
-    @Column(name = "source_track_id", length = 100)
+    @Column(name = "source_track_id", length = 100, unique = true)
     private String sourceTrackId;
 
     @Column(name = "source_track_title")
@@ -65,9 +65,6 @@ public class Song {
 
     @Column(name = "analysis_profile", columnDefinition = "TEXT")
     private String analysisProfile;
-
-    @Column(name = "editorial_notes", columnDefinition = "TEXT")
-    private String editorialNotes;
 
     @Builder
     public Song(String title, String artist, String mfccVector, Float zcrValue, Float rmsValue, String albumCoverUrl,

@@ -1,8 +1,9 @@
 import unittest
+import json
 from unittest.mock import patch, Mock
 import numpy as np
 
-from local_analysis import measure_audio, analyze_voice, render_report, validate_observations
+from local_analysis import measure_audio, analyze_voice, render_report, validate_observations, TRAIT_VALUES
 
 
 class LocalAnalysisTest(unittest.TestCase):
@@ -19,8 +20,11 @@ class LocalAnalysisTest(unittest.TestCase):
 
     def test_cloud_request_contains_audio_and_no_filename(self):
         response = Mock(status_code=200)
+        analysis = {'summary': '담백한 인상', 'observations': [], 'limitations': ['짧은 녹음'],
+            'traits': {name: {'value': values[0], 'confidence': 'low'} for name, values in TRAIT_VALUES.items()},
+            'pitch_claims': []}
         response.json.return_value = {'candidates': [{'finishReason': 'STOP', 'content': {'parts': [
-            {'text': '{"summary":"담백한 인상","observations":[],"limitations":["짧은 녹음"]}'},
+            {'text': json.dumps(analysis)},
         ]}}], 'usageMetadata': {'totalTokenCount': 123}}
         with patch('local_analysis.requests.post', return_value=response) as post:
             result = analyze_voice(b'RIFF-audio', 3., 'test-key', 'gemini-test')

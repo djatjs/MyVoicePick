@@ -436,7 +436,12 @@ def extract_song_features(vocal_path: str):
 
 
 def save_song(db, entry: dict, pitch: float, mfcc: list, profile: dict):
-    song = db.query(Song).filter(Song.title == entry["title"], Song.artist == entry["artist"]).first()
+    source_id = entry.get("source_track_id")
+    song = db.query(Song).filter(Song.source_track_id == source_id).first() if source_id else None
+    if song is None:
+        song = db.query(Song).filter(Song.title == entry["title"], Song.artist == entry["artist"]).first()
+    if song is not None and song.source_track_id and source_id and song.source_track_id != source_id:
+        raise ValueError("동일 제목/가수의 다른 트랙 버전입니다. 기존 출처를 덮어쓰지 않습니다.")
     if song is None:
         song = Song(title=entry["title"], artist=entry["artist"])
         db.add(song)
@@ -461,11 +466,11 @@ def check_songs_table():
     """songs 테이블이 수집 결과를 받을 수 있는 구조인지 시작 전에 확인합니다."""
     inspector = inspect(engine)
     if not inspector.has_table("songs"):
-        print("🚨 오류: DB에 songs 테이블이 없습니다. Spring 서버를 한 번 실행해 테이블을 만든 뒤 다시 시도하세요.")
+        print("🚨 오류: DB에 songs 테이블이 없습니다. 기본 스키마와 docs/song-data.md의 마이그레이션을 먼저 적용하세요.")
         sys.exit(1)
 
     columns = {col["name"] for col in inspector.get_columns("songs")}
-    required = {"title", "artist", "album_cover_url", "preview_url", "pitch", "mfcc_vector", "genre", "source_track_id", "source_track_title", "source_track_url", "analysis_profile", "editorial_notes"}
+    required = {"title", "artist", "album_cover_url", "preview_url", "pitch", "mfcc_vector", "genre", "source_track_id", "source_track_title", "source_track_url", "analysis_profile"}
     missing = required - columns
     if missing:
         print(f"🚨 오류: songs 테이블에 컬럼이 없습니다: {', '.join(sorted(missing))}")
