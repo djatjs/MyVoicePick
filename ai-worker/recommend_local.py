@@ -1,6 +1,6 @@
 """Local, free song recommendation experiment: ECAPA timbre + observed pitch range. No paid API.
 
-python recommend_local.py build [--limit N]   # analyze iTunes previews of songs in the local DB
+python recommend_local.py build [--limit N] [--melon 60]   # iTunes previews of local DB (+ Melon chart) songs
 python recommend_local.py eval                # same-artist retrieval: ECAPA vs mean-MFCC
 python recommend_local.py recommend <audio>   # top songs for a recording, HTML report
 """
@@ -60,7 +60,7 @@ def voice_features(vocals):
 
 def key_shift(user, song):
     """Semitones to move the song so its p10~p90 sits inside the user's observed p10~p90.
-    Returns (shift, fit 0~1). Shifts past 6 semitones mean singing an octave away instead."""
+    Returns (shift, octave, fit 0~1). Shifts past 6 semitones mean singing an octave away instead."""
     u_lo, u_hi = user['pitch_midi_p10'], user['pitch_midi_p90']
     s_lo, s_hi = song['pitch_midi_p10'], song['pitch_midi_p90']
     best = None
@@ -68,8 +68,11 @@ def key_shift(user, song):
         for shift in range(-6, 7):
             lo, hi = s_lo + octave + shift, s_hi + octave + shift
             overlap = max(0., min(hi, u_hi) - max(lo, u_lo)) / max(hi - lo, 1.)
-            # prefer the original key and the original octave when fits tie
-            score = overlap - abs(shift) * .02 - (octave != 0) * .05
+            # going over the top strains the voice; the observed bottom is only the lowest note sung this time,
+            # so up to 2 semitones under it is free and beyond that counts half
+            misfit = (max(0., hi - u_hi) + .5 * max(0., u_lo - lo - 2)) / max(hi - lo, 1.)
+            # change key only to fix a misfit, never just to move the song around
+            score = -misfit - abs(shift) * .03 - (octave != 0) * .05
             if best is None or score > best[0]:
                 best = (score, shift, octave, overlap)
     _, shift, octave, overlap = best
@@ -81,15 +84,26 @@ def cosine(a, b):
     return float(a @ b / (np.linalg.norm(a) * np.linalg.norm(b) or 1.))
 
 
+def center_gap(user, song, shift, octave):
+    """Semitones the song's middle (p50, after the key change) sits above (+) or below (-) the recording's middle."""
+    return song['pitch_midi_p50'] + shift + octave - user['pitch_midi_p50']
+
+
 def rank(user, catalog, top=5):
-    """Timbre percentile 60% + range fit 40%, at most one song per artist."""
+    """Timbre percentile 60% + range 40% (fit inside the observed range, and how near its middle the song sits),
+    at most one song per artist."""
     sims = np.array([cosine(user['embedding'], s['embedding']) for s in catalog])
     pct = sims.argsort().argsort() / max(len(sims) - 1, 1)
     scored = []
     for song, sim, p in zip(catalog, sims, pct):
         shift, octave, fit = key_shift(user['range'], song['range'])
+        gap = center_gap(user['range'], song['range'], shift, octave)
+        # sitting above the recording's middle is the strain; sitting lower is easy
+        # shortcut: 6반음 위면 0점인 선형 감점은 실험값. 사용자 피드백이 쌓이면 보정할 것
+        comfort = max(0., 1 - max(gap, 0.) / 6)
         scored.append({**song, 'similarity': float(sim), 'timbre_pct': float(p), 'shift': shift,
-                       'octave': octave, 'fit': fit, 'score': .6 * p + .4 * fit})
+                       'octave': octave, 'fit': fit, 'center_gap': gap,
+                       'score': .6 * p + .4 * (.5 * fit + .5 * comfort)})
     scored.sort(key=lambda s: -s['score'])
     picks, artists = [], set()
     for song in scored:
@@ -123,6 +137,13 @@ def reason(song, user):
         key = f"{song['shift']:+d}키" if song['shift'] else '원키'
         octave = ' (한 옥타브 ' + ('낮게' if song['octave'] < 0 else '높게') + ')' if song['octave'] else ''
         parts.append(f'{span}라 {key}{octave}로 옮기면 녹음 음역 안에 {song["fit"]:.0%} 들어와요')
+    gap = song.get('center_gap', 0)
+    if abs(gap) <= 1.5:
+        parts.append('곡이 주로 머무는 높이가 녹음에서 가장 많이 낸 높이와 비슷해요')
+    elif gap > 0:
+        parts.append(f'다만 곡이 녹음에서 가장 많이 낸 높이보다 {gap:.0f}반음 높은 쪽에 머물러 조금 힘이 들 수 있어요')
+    else:
+        parts.append(f'곡이 녹음에서 가장 많이 낸 높이보다 {-gap:.0f}반음 낮은 쪽에 머물러 편하게 부를 수 있어요')
     return '. '.join(parts) + '.'
 
 
@@ -130,33 +151,54 @@ def load_catalog():
     return json.loads(CATALOG_PATH.read_text(encoding='utf-8')) if CATALOG_PATH.exists() else {}
 
 
-def build(limit=None):
+def build(limit=None, melon_per_genre=0):
     CATALOG_DIR.mkdir(parents=True, exist_ok=True)
     catalog = load_catalog()
+    failed_path = CATALOG_DIR / 'failed.json'
+    failed = json.loads(failed_path.read_text(encoding='utf-8')) if failed_path.exists() else {}
     with sqlite3.connect(BASE / 'local_temp.db') as db:
-        songs = db.execute('select id, title, artist from songs order by id').fetchall()
-    todo = [s for s in songs if str(s[0]) not in catalog][:limit]
+        targets = [{'id': i, 'title': t, 'artist': a}
+                   for i, t, a in db.execute('select id, title, artist from songs order by id')]
+    if melon_per_genre:
+        targets += collector.load_target_songs_from_melon(melon_per_genre)
+    done = {collector.song_key(s['title'], s['artist']) for s in catalog.values()}
+    tracks = {s['source_track_id'] for s in catalog.values()}
+    todo = []
+    for target in targets:
+        key = collector.song_key(target['title'], target['artist'])
+        if key not in done and key not in failed:
+            done.add(key)
+            todo.append(target)
+    todo = todo[:limit]
     session = requests.Session()
     session.headers['User-Agent'] = collector.USER_AGENT
+
+    def fail(entry, error):
+        print(f'  건너뜀 {entry["artist"]} - {entry["title"]}: {error}')
+        failed[collector.song_key(entry['title'], entry['artist'])] = str(error)[:200]
+
     for i in range(0, len(todo), 8):
         batch, paths = [], []
-        for song_id, title, artist in todo[i:i + 8]:
-            entry = {'title': title, 'artist': artist}
-            path = CATALOG_DIR / f'{collector.file_id(collector.song_key(title, artist))}.m4a'
+        for target in todo[i:i + 8]:
+            entry = dict(target)
+            path = CATALOG_DIR / f'{collector.file_id(collector.song_key(entry["title"], entry["artist"]))}.m4a'
             try:
                 collector.fetch_meta(session, entry)
+                if entry['source_track_id'] in tracks:
+                    raise ValueError('이미 카탈로그에 있는 iTunes 트랙입니다.')
                 if not path.exists():
                     collector.download_preview(session, entry['preview_url'], str(path))
             except Exception as error:
-                print(f'  건너뜀 {artist} - {title}: {error}')
+                fail(entry, error)
                 continue
-            batch.append((song_id, entry))
+            tracks.add(entry['source_track_id'])
+            batch.append(entry)
             paths.append(str(path))
         if not paths:
             continue
         print(f'보컬 분리 {i + 1}~{i + len(todo[i:i + 8])} / {len(todo)}', flush=True)
         errors = collector.separate_vocals(paths)
-        for (song_id, entry), path in zip(batch, paths):
+        for entry, path in zip(batch, paths):
             try:
                 if errors[path]:
                     raise RuntimeError(errors[path])
@@ -165,12 +207,16 @@ def build(limit=None):
                 if features['pitched_seconds'] < 5:
                     raise ValueError('유효 음높이 구간이 5초 미만입니다.')
             except Exception as error:
-                print(f'  실패 {entry["artist"]} - {entry["title"]}: {error}')
+                fail(entry, error)
                 continue
-            catalog[str(song_id)] = {'id': song_id, 'title': entry['title'], 'artist': entry['artist'],
-                                     'source_track_id': entry['source_track_id'],
-                                     'preview_url': entry['preview_url'], 'version': VERSION, **features}
+            # DB songs keep their numeric id as key; chart songs use title||artist
+            key = str(entry['id']) if entry.get('id') else collector.song_key(entry['title'], entry['artist'])
+            catalog[key] = {'id': entry.get('id'), 'title': entry['title'], 'artist': entry['artist'],
+                            'genre': entry.get('genre'), 'source_track_id': entry['source_track_id'],
+                            'source_track_title': entry.get('itunes_track'),
+                            'preview_url': entry['preview_url'], 'version': VERSION, **features}
         CATALOG_PATH.write_text(json.dumps(catalog, ensure_ascii=False), encoding='utf-8')
+        failed_path.write_text(json.dumps(failed, ensure_ascii=False), encoding='utf-8')
     print(f'카탈로그 {len(catalog)}곡: {CATALOG_PATH}')
 
 
@@ -229,13 +275,14 @@ def main():
     sub = parser.add_subparsers(dest='cmd', required=True)
     b = sub.add_parser('build')
     b.add_argument('--limit', type=int)
+    b.add_argument('--melon', type=int, default=0, help='멜론 장르별 차트에서 장르당 가져올 곡 수')
     sub.add_parser('eval')
     r = sub.add_parser('recommend')
     r.add_argument('audio', type=Path)
     r.add_argument('--vocals', type=Path)
     args = parser.parse_args()
     if args.cmd == 'build':
-        build(args.limit)
+        build(args.limit, args.melon)
     elif args.cmd == 'eval':
         evaluate()
     else:
