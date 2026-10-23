@@ -47,6 +47,15 @@ class RankTest(unittest.TestCase):
         catalog = [song('High', '1', [1., 0.], 54, 60), song('Mid', '1', [1., 0.], 52, 58)]
         self.assertEqual(rank(USER, catalog, top=1)[0]['artist'], 'Mid')
 
+    def test_song_whose_preview_tops_near_the_recording_top_is_flagged_and_ranked_lower(self):
+        # same voice, both fit in the original key; one tops out 1 semitone under the recording's top (60)
+        catalog = [song('NearTop', '1', [1., 0.], 53, 59), song('Safe', '1', [1., 0.], 52, 56)]
+        picks = rank(USER, catalog, top=2)
+        self.assertEqual([p['artist'] for p in picks], ['Safe', 'NearTop'])
+        self.assertTrue(picks[1]['climax_risk'])
+        self.assertIn('클라이맥스가 빠졌을 수 있어', reason(picks[1], USER))
+        self.assertNotIn('클라이맥스', reason(picks[0], USER))
+
     def test_low_song_keeps_original_key(self):
         shift, octave, _ = key_shift(USER['range'], song('a', 't', [], 50, 54)['range'])
         self.assertEqual((shift, octave), (0, 0))

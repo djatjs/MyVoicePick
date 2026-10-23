@@ -94,9 +94,14 @@ def rank(user, catalog, top=5):
         # sitting above the recording's middle is the strain; sitting lower is easy
         # shortcut: 6반음 위면 0점인 선형 감점은 실험값. 사용자 피드백이 쌓이면 보정할 것
         comfort = max(0., 1 - max(gap, 0.) / 6)
+        # a 30s preview often misses the climax: a preview top this close to the recording's top may really go past it
+        headroom = user['range']['pitch_midi_p90'] - (song['range']['pitch_midi_p90'] + shift + octave)
+        # shortcut: 3반음 이내 위험·반음당 0.03 감점은 실험값. '어려워요' 피드백이 쌓이면 보정할 것
+        climax_risk = judge_key and headroom < 3
         scored.append({**song, 'similarity': float(sim), 'timbre_pct': float(p), 'shift': shift,
                        'octave': octave, 'fit': fit, 'center_gap': gap, 'key_judged': judge_key,
-                       'score': .6 * p + .4 * (.5 * fit + .5 * comfort)})
+                       'climax_risk': climax_risk,
+                       'score': .6 * p + .4 * (.5 * fit + .5 * comfort) - (.03 * (3 - headroom) if climax_risk else 0)})
     scored.sort(key=lambda s: -s['score'])
     picks, artists = [], set()
     for song in scored:
@@ -177,4 +182,6 @@ def reason(song, user):
         parts.append(f'다만 곡이 녹음에서 가장 많이 낸 높이보다 {gap:.0f}반음 높은 쪽에 머물러 조금 힘이 들 수 있어요')
     else:
         parts.append(f'곡이 녹음에서 가장 많이 낸 높이보다 {-gap:.0f}반음 낮은 쪽에 머물러 편하게 부를 수 있어요')
+    if song.get('climax_risk'):
+        parts.append('다만 곡의 높은 부분이 녹음에서 낸 최고음에 가까워요. 미리듣기 30초에 클라이맥스가 빠졌을 수 있어 실제로는 더 높을 수 있어요')
     return '. '.join(parts) + '.'
