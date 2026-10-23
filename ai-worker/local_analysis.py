@@ -20,7 +20,7 @@ import requests
 import soundfile as sf
 from dotenv import load_dotenv
 
-from song_features import vocal_activity, vocal_pitch_profile
+from song_features import vocal_activity, pitch_profile_from_activity
 
 PROFILE_VERSION = 'audio-selection-v2'
 TRAIT_VALUES = {
@@ -84,8 +84,8 @@ ANALYSIS_SCHEMA = {
 }
 
 
-def select_window(vocals, sr, seconds=45.):
-    active = vocal_activity(vocals)
+def select_window(vocals, sr, seconds=45., activity=None):
+    active = vocal_activity(vocals) if activity is None else activity
     if not active.any():
         raise ValueError('보컬 활동 구간을 찾지 못했습니다.')
     width = min(len(active), max(1, round(seconds * sr / 256)))
@@ -112,14 +112,15 @@ def separate_vocals(audio, cache_root):
     return output
 
 
-def measure_audio(y, sr):
+def measure_audio(y, sr, activity=None):
     if y.size < sr * 3 or not np.isfinite(y).all():
         raise ValueError('분석 가능한 음성이 3초 이상 필요합니다.')
     if float(np.sqrt(np.mean(y ** 2))) < 0.0001:
         raise ValueError('소리가 너무 작거나 무음입니다.')
     f0, voiced, probability = librosa.pyin(
         y, sr=sr, fmin=librosa.note_to_hz('C2'), fmax=librosa.note_to_hz('C7'), hop_length=256)
-    _, result = vocal_pitch_profile(y, sr, f0, voiced, probability, 256)
+    active = vocal_activity(y)[:len(f0)] if activity is None else activity
+    _, result = pitch_profile_from_activity(y, sr, f0, voiced, probability, 256, active)
     result.update({'scope': 'uploaded_excerpt', 'input_stem': 'separated_vocals',
                    'rms': float(np.sqrt(np.mean(y ** 2))),
                    'clipped_sample_ratio': float(np.mean(np.abs(y) >= .999))})
@@ -160,6 +161,15 @@ def check_pitch_claims(analysis, measurement):
             status = 'conflict' if a < lo - 2 or b > hi + 2 or b < lo - 2 or a > hi + 2 else 'within_observed_range'
         checked.append({**claim, 'status': status, 'observed_p10': lo, 'observed_p90': hi})
     return checked
+
+
+def check_ability_claims(analysis):
+    """Flag evaluation language rather than treating it as a measured ability."""
+    texts = [('summary', analysis.get('summary', ''))]
+    texts += [('observation', item.get('description', '')) for item in analysis.get('observations', [])]
+    pattern = r'능력|실력|잘\s*부르|뛰어나|탁월|능숙|호흡\s*지지|편한\s*음역|안정적|안정적인|상위\s*\d|ability|skill|talent'
+    return [{'source': source, 'description': text, 'status': 'unverified_ability_claim'}
+            for source, text in texts if re.search(pattern, text, re.IGNORECASE)]
 
 
 def validate_observations(analysis, duration):
@@ -268,6 +278,8 @@ def render_report(report, wav_bytes=None):
                        for key, item in consistency.get('traits', {}).items())
     checks = ''.join(f'<li>{esc(check["status"])}: {esc(check["description"])}</li>'
                      for run in report.get('model_runs', []) for check in run.get('pitch_checks', []))
+    ability_checks = ''.join(f'<li>{esc(check["description"])}</li>'
+                            for run in report.get('model_runs', []) for check in run.get('ability_checks', []))
     raw_runs = html.escape(json.dumps(report.get('model_runs', []), ensure_ascii=False, indent=2))
     limitations = ''.join(f'<li>{esc(value)}</li>' for value in analysis.get('limitations', []))
     return f'''<!doctype html><html lang="ko"><meta charset="utf-8">
@@ -284,6 +296,7 @@ def render_report(report, wav_bytes=None):
 <table><tr><th>항목</th><th>회차별 값</th><th>쌍별 일치율</th></tr>{repeated}</table>
 <h3>모델 음역 주장 대조</h3><p>conflict: 관측 분포와 어긋남 · unverifiable: 수치 근거 없어 확인 불가.
 within_observed_range도 편한 음역이라는 뜻은 아닙니다.</p><ul>{checks}</ul>
+<h3>검증되지 않은 능력 표현</h3><p>아래 표현은 모델의 해석이며 측정으로 입증한 능력이 아닙니다.</p><ul>{ability_checks}</ul>
 <details><summary>모든 회차의 분석과 토큰 사용량</summary><pre style="white-space:pre-wrap">{raw_runs}</pre></details>
 <h3>분석 한계</h3><ul>{limitations}</ul><p>{esc(report.get('model_error', ''))}</p></section>
 <section><h2>분리 보컬의 신호 측정</h2><p>이번 구간에서 관측한 음높이입니다. 편한 음역·추천 키를 뜻하지 않습니다.
@@ -303,19 +316,24 @@ def main():
     parser.add_argument('--offline', action='store_true', help='외부 전송 없이 측정만 실행')
     parser.add_argument('--output', type=Path, default=Path('tmp/audio-analysis'))
     args = parser.parse_args()
+    manual_start = args.start is not None
     if ((args.start is not None and (not math.isfinite(args.start) or args.start < 0))
             or not 3 <= args.seconds <= 60 or not 1 <= args.repeats <= 3):
         parser.error('start는 0 이상, seconds는 3~60 사이여야 합니다.')
     load_dotenv(Path(__file__).with_name('.env'))
     vocal_path = args.vocals or separate_vocals(args.audio, args.output / 'separation-cache')
     vocals, sr = librosa.load(vocal_path, sr=16000)
-    args.start = args.start if args.start is not None else select_window(vocals, sr, args.seconds)
+    full_activity = vocal_activity(vocals)
+    args.start = args.start if manual_start else select_window(vocals, sr, args.seconds, activity=full_activity)
     y, _ = librosa.load(args.audio, sr=sr, offset=args.start, duration=args.seconds)
     offset = round(args.start * sr)
     selected_vocals = vocals[offset:offset + len(y)]
     if abs(librosa.get_duration(path=args.audio) - len(vocals) / sr) > .2:
         raise ValueError('원본과 전체 보컬 파일의 길이가 다릅니다.')
-    measurement = measure_audio(selected_vocals, sr)
+    frame_indices = (offset + np.arange(len(selected_vocals) // 256 + 1) * 256) // 256
+    activity = full_activity[np.minimum(frame_indices, len(full_activity) - 1)]
+    measurement = measure_audio(selected_vocals, sr, activity=activity)
+    measurement['activity_reference'] = 'full_track_peak'
     buffer = io.BytesIO()
     sf.write(buffer, y, sr, format='WAV', subtype='PCM_16')
     wav_bytes = buffer.getvalue()
@@ -323,7 +341,7 @@ def main():
               'prompt_sha256': hashlib.sha256((PROMPT + json.dumps(ANALYSIS_SCHEMA, sort_keys=True)).encode()).hexdigest(),
               'start_seconds': args.start, 'created_at': datetime.now(timezone.utc).isoformat(),
               'measurement': measurement, 'separation_model': 'htdemucs',
-              'selection_method': 'manual' if '--start' in sys.argv else 'maximum_vocal_activity',
+              'selection_method': 'manual' if manual_start else 'maximum_vocal_activity',
               'requested_runs': args.repeats, 'model_runs': [], 'model_errors': []}
     failed = False
     if not args.offline:
@@ -333,6 +351,7 @@ def main():
                 run = analyze_voice(wav_bytes, len(y) / sr,
                     os.getenv('GEMINI_API_KEY') or os.getenv('GOOGLE_API_KEY'), args.model)
                 run['pitch_checks'] = check_pitch_claims(run['analysis'], measurement)
+                run['ability_checks'] = check_ability_claims(run['analysis'])
                 report['model_runs'].append(run)
             except (ValueError, RuntimeError) as error:
                 report['model_errors'].append({'run': index + 1, 'error': str(error)})

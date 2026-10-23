@@ -65,6 +65,7 @@ class SongCatalogTest(unittest.TestCase):
             audio = .3 * np.sin(2 * np.pi * 220 * np.arange(16000 * 3) / 16000)
             collector.AnalysisService.extract_audio_features(audio, 16000, include_song_profile=True)
         self.assertEqual(pyin.call_count, 1)
+        self.assertEqual(pyin.call_args.kwargs['hop_length'], 512)
 
     def test_source_id_is_unique_at_database_boundary(self):
         engine = create_engine('sqlite://')

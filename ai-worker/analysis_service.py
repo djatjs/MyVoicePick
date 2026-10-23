@@ -313,9 +313,10 @@ class AnalysisService:
         # 시간축을 보존한 단일 F0로 평균과 분포를 함께 계산한다.
         f0, voiced, probability = librosa.pyin(
             y_low, fmin=librosa.note_to_hz('C2'), fmax=librosa.note_to_hz('C7'),
-            sr=target_sr, hop_length=256)
+            sr=target_sr, hop_length=512)
         from song_features import vocal_pitch_profile
-        f0, song_profile = vocal_pitch_profile(y_low, target_sr, f0, voiced, probability, 256)
+        f0, song_profile = vocal_pitch_profile(y_low, target_sr, f0, voiced, probability, 512)
+        song_profile['f0_hop_length'] = 512
         valid_f0 = f0[np.isfinite(f0)]
         avg_pitch = float(np.mean(valid_f0)) if valid_f0.size > 0 else 0.0
         emotion = float(np.std(valid_f0)) if valid_f0.size > 0 else 0.0

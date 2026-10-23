@@ -4,7 +4,7 @@ from unittest.mock import patch
 import numpy as np
 
 from local_analysis import (measure_audio, select_window, consistency_report,
-                            check_pitch_claims, TRAIT_VALUES, validate_observations)
+                            check_pitch_claims, TRAIT_VALUES, validate_observations, check_ability_claims)
 
 
 def traits():
@@ -13,6 +13,18 @@ def traits():
 
 
 class AnalysisV2Test(unittest.TestCase):
+    def test_summary_ability_claim_is_flagged(self):
+        self.assertTrue(check_ability_claims({'summary': '고음 능력이 뛰어납니다.'}))
+        self.assertFalse(check_ability_claims({'summary': '숨소리가 섞인 음색입니다.'}))
+
+    def test_full_track_activity_is_used_without_rethresholding(self):
+        y = np.ones(16000 * 3) * .01
+        n = len(y) // 256 + 1
+        with patch('local_analysis.librosa.pyin', return_value=(np.full(n, 220.), np.ones(n, bool), np.ones(n))), \
+             patch('local_analysis.vocal_activity', side_effect=AssertionError('must reuse full-track mask')):
+            result = measure_audio(y, 16000, activity=np.zeros(n, bool))
+        self.assertEqual(result['vocal_active_seconds'], 0.)
+
     def test_window_uses_vocal_activity_and_keeps_time(self):
         sr = 16000
         y = np.zeros(sr * 70)

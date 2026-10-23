@@ -1,0 +1,1 @@
+{\"bright\": \"unknown\", \"breathiness\": \"unknown\", \"roughness\": \"unknown\", \"thickness\": \"unknown\", \"intensity\": \"unknown\", \"vibrato_use\": \"unknown\", \"delivery\": \"unknown\"}

@@ -13,6 +13,13 @@ def vocal_activity(y, hop_length=256):
 
 def vocal_pitch_profile(y, sr, f0, voiced, probability, hop_length):
     active = vocal_activity(y, hop_length)[:len(f0)]
+    return pitch_profile_from_activity(y, sr, f0, voiced, probability, hop_length, active)
+
+
+def pitch_profile_from_activity(y, sr, f0, voiced, probability, hop_length, active):
+    """Reuse a full-track activity mask without deriving a new excerpt peak."""
+    if len(active) != len(f0):
+        raise ValueError('활동 마스크와 F0 프레임 수가 다릅니다.')
     # shortcut: -35dB 활동 기준과 F0 확률 0.3은 실험값. 가창 평가 세트로 보정 후 운영에 적용.
     valid = active & voiced & np.isfinite(f0) & (probability >= .3)
     filtered = np.where(valid, f0, np.nan)
