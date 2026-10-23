@@ -11,7 +11,6 @@ import shutil
 import json
 import librosa
 import numpy as np
-from numpy.linalg import norm
 
 from database import SessionLocal
 from models import Song
@@ -63,120 +62,9 @@ class AnalysisService:
         return tags
 
     @staticmethod
-    def cosine_similarity(vec_a: np.ndarray, vec_b: np.ndarray) -> float:
-        """
-        두 벡터 간의 코사인 유사도를 -1~1 사이로 반환합니다.
-
-        [설계 의도 - 블랙홀 버그 해결]
-        - 유클리디안 거리는 MFCC[0](에너지/음량)의 절대값이 커서
-          다른 모든 차원을 '덮어먹는' 현상이 발생합니다. (블랙홀 버그 원인)
-        - 코사인 유사도는 벡터의 방향(패턴/지문)만 비교하므로
-          절대 음량에 무관하게 목소리의 '음색 지문'을 비교합니다.
-        """
-        norm_a = norm(vec_a)
-        norm_b = norm(vec_b)
-        # 제로 벡터 예외 처리 (ZeroDivisionError 방지)
-        if norm_a == 0 or norm_b == 0:
-            return 0.0
-        return float(np.dot(vec_a, vec_b) / (norm_a * norm_b))
-
-    @staticmethod
     def cosine_to_score(cosine_sim: float) -> int:
         """코사인 유사도(-1~1)를 0~100%로 그대로 옮긴다. 하한·상한 보정 없이 차이가 그대로 보이게 한다."""
         return int(max(0, min(100, round((cosine_sim + 1) / 2 * 100))))
-
-    @staticmethod
-    def semitone_gap(user_pitch: float, song_pitch: float) -> float:
-        """사용자와 곡의 평균 음높이 차이(반음). 8반음 넘게 벌어지면 한 옥타브 올리거나 내려 부르는 것으로 본다(키 추천과 같은 기준)."""
-        if user_pitch <= 0 or song_pitch <= 0:
-            return 12.0
-        gap = 12 * math.log2(user_pitch / song_pitch)
-        if gap < -8:
-            gap += 12
-        elif gap > 8:
-            gap -= 12
-        return gap
-
-    @staticmethod
-    def rank_songs(user_mfcc: np.ndarray, user_pitch: float, songs: list) -> list:
-        """
-        songs: [{"id", "pitch", "mfcc"}] 전체 곡. 음색 70% + 음역 30%로 점수를 매겨 높은 순으로 돌려준다.
-
-        평균 MFCC를 그대로 비교하면 c0(음량)가 벡터 방향을 거의 정해 모든 곡의 코사인이 0.9 이상으로 붙는다.
-        c0를 빼고, 곡 전체의 평균·표준편차로 계수별 표준화한 뒤 비교해야 곡끼리 차이가 드러난다.
-        """
-        X = np.array([s["mfcc"] for s in songs], dtype=np.float64)[:, 1:]
-        mean = X.mean(axis=0)
-        std = X.std(axis=0)
-        std[std == 0] = 1.0
-        Z = (X - mean) / std
-        q = (np.asarray(user_mfcc, dtype=np.float64)[1:] - mean) / std
-
-        z_norms = np.linalg.norm(Z, axis=1)
-        z_norms[z_norms == 0] = 1.0
-        q_norm = np.linalg.norm(q) or 1.0
-        cosines = (Z @ q) / (z_norms * q_norm)
-
-        ranked = []
-        for song, cosine in zip(songs, cosines):
-            gap = AnalysisService.semitone_gap(user_pitch, song["pitch"] or 0.0)
-            timbre_score = (float(cosine) + 1) / 2
-            pitch_score = max(0.0, 1.0 - abs(gap) / 12)
-            ranked.append({
-                "id": song["id"],
-                "pitch": song["pitch"] or 0.0,
-                "cosine": float(cosine),
-                "score": timbre_score * 0.7 + pitch_score * 0.3,
-            })
-        ranked.sort(key=lambda c: c["score"], reverse=True)
-        return ranked
-
-    @staticmethod
-    def generate_recommend_reason(tags: list, artist: str, user_pitch: float, song_pitch: float, vocal_stats: dict) -> str:
-        """
-        추천 이유 텍스트에 피치 평균 대비 톤 설명과 감정 점수 근거를 추가합니다.
-        """
-        # 1) 톤(피치) 설명 – 일반 평균(165Hz) 대비
-        avg_base = 165.0
-        diff = user_pitch - avg_base
-        if diff > 30:
-            tone_desc = "상위 15% 수준의 유니크한 하이톤"
-        elif diff > 10:
-            tone_desc = "디테일이 살아있는 맑은 톤"
-        elif diff < -30:
-            tone_desc = "하위 15% 수준의 묵직한 딥 로우톤"
-        elif diff < -10:
-            tone_desc = "풍부한 울림을 가진 로우톤"
-        else:
-            tone_desc = "가장 안정적이고 대중적인 미드톤"
-
-        # 2) 감정 및 스탯 강조
-        emotion_score = vocal_stats.get("emotion") if isinstance(vocal_stats, dict) else 0
-        power_score = vocal_stats.get("power") if isinstance(vocal_stats, dict) else 0
-        
-        if emotion_score and emotion_score > 70:
-            stat_highlight = f"특히 {emotion_score}점에 달하는 압도적인 감정 표현력(Emotion)이 곡의 몰입도를 극대화할 것입니다."
-        elif power_score and power_score > 70:
-            stat_highlight = f"특히 {power_score}점에 달하는 단단한 성량(Power)이 이 곡의 클라이맥스와 완벽한 시너지를 냅니다."
-        else:
-            stat_highlight = "128-point 음색 DNA와 주파수 파형이 이 곡의 악기 구성과 가장 이상적인 대역폭을 공유하고 있습니다."
-
-        # 3) 기본 추천 문구
-        voice_style = tags[0].replace("#", "") if tags else "매력적인"
-        mood = tags[1].replace("#", "") if len(tags) > 1 else "독보적인"
-        pitch_diff = abs(user_pitch - song_pitch)
-        
-        # 좀 더 세련된 AI 프로듀서 느낌의 멘트로 변경
-        base_reason = (
-            f"당신의 목소리 지문(Voice Print)을 분석한 결과, {int(user_pitch)}Hz 기반의 '{tone_desc}'을 가지고 있습니다. "
-            f"이러한 {voice_style} 보컬 데이터는 {artist}의 {mood} 감성과 매우 정밀한 음향적 일치율을 보입니다. "
-            f"{stat_highlight}"
-        )
-
-        # 4) Pitch 차이 50Hz 이상이면 키(Key) 변경 추천 자동 추가
-        key_tip = " (단, 원곡과의 기본 음역대 편차가 감지되었으므로, 맞춤 Key 조정을 통해 당신만의 스타일로 재해석하는 것을 권장합니다.)" if pitch_diff >= 50 else ""
-
-        return f"{base_reason}{key_tip}"
 
     @staticmethod
     def generate_pro_features(user_pitch: float, best_song_pitch: float, vocal_stats: dict, matched_artist: str, matched_song_title: str, similar_songs: list) -> dict:
@@ -521,49 +409,31 @@ class AnalysisService:
                 # 3) 목소리 프로파일링 태그 생성
                 voice_tags = AnalysisService.generate_voice_tags(avg_pitch, avg_mfcc)
                 
-                # 4. DB 연동: 전체 곡을 불러와 음색·음역 종합 점수로 순위를 매깁니다.
-                # 표준화 기준(곡 전체의 평균·표준편차)이 흔들리지 않도록 음높이로 미리 거르지 않습니다.
-                # shortcut: 요청마다 전체 곡을 메모리에 올려 전수 비교함. 곡이 수만 개를 넘어 느려지면 표준화 벡터를 캐시하고 ANN 인덱스로 바꿀 것
+                # 4. 음색(ECAPA)·음역으로 카탈로그 곡 순위를 매깁니다. 곡 프로필은 recommend_local.py export-db로 채웁니다.
+                # 순환 import 방지: voice_match는 data_collector를 거치지 않지만 워커 시작 시간을 늘리지 않도록 여기서 불러옵니다.
+                from voice_match import SR as VOICE_SR, catalog_from_songs, rank, reason, voice_features
+                user_voice = voice_features(librosa.resample(y, orig_sr=sr, target_sr=VOICE_SR))
                 db = SessionLocal()
                 try:
-                    songs = []
-                    for song in db.query(Song).filter(Song.mfcc_vector.isnot(None)).all():
-                        try:
-                            mfcc = json.loads(song.mfcc_vector)
-                        except (ValueError, TypeError):
-                            continue
-                        if len(mfcc) == len(avg_mfcc):
-                            songs.append({"id": song.id, "pitch": song.pitch, "mfcc": mfcc,
-                                          "title": song.title, "artist": song.artist})
-
-                    if not songs:
-                        logger.warning("[AnalysisService] DB에 곡 데이터가 하나도 없습니다. 매칭을 건너뜁니다.")
-                        matched_song_id = None
-                    else:
-                        logger.info(f"[AnalysisService] 음색·음역 종합 점수 계산 시작 (후보 곡 수: {len(songs)})")
-                        candidates = AnalysisService.rank_songs(avg_mfcc, avg_pitch, songs)
-                        best = candidates[0]
-                        best_score = best["score"]
-                        best_cosine = best["cosine"]
-                        best_song_pitch = best["pitch"]
-                        matched_song_id = best["id"]
-                        logger.info(f"[AnalysisService] 최종 매칭 완료! Song ID: {matched_song_id} | 최고 종합 점수: {best_score:.4f} (코사인 {best_cosine:.4f})")
-
-                        by_id = {s["id"]: s for s in songs}
-                        matched_artist = by_id[matched_song_id]["artist"] or "알 수 없는 아티스트"
-                        matched_song_title = by_id[matched_song_id]["title"] or "알 수 없는 곡"
-
-                        # PRO 플레이리스트: 종합 점수 2~4위 곡 (순위 순서 유지)
-                        similar_songs_data = [
-                            {"title": by_id[c["id"]]["title"], "artist": by_id[c["id"]]["artist"]}
-                            for c in candidates[1:4]
-                            if by_id[c["id"]]["title"] and by_id[c["id"]]["artist"]
-                        ]
-
+                    catalog = catalog_from_songs(db.query(Song).filter(Song.analysis_profile.isnot(None)).all())
                 finally:
                     # DB 세션을 반드시 반환하여 커넥션 풀을 관리합니다.
                     db.close()
 
+                picks = rank(user_voice, catalog) if catalog else []
+                if not picks:
+                    logger.warning("[AnalysisService] 음색 프로필이 있는 곡이 없습니다. 매칭을 건너뜁니다.")
+                    matched_song_id = None
+                else:
+                    best = picks[0]
+                    matched_song_id = best["id"]
+                    best_cosine = best["similarity"]
+                    best_song_pitch = float(librosa.midi_to_hz(best["range"]["pitch_midi_p50"]))
+                    matched_artist = best["artist"] or "알 수 없는 아티스트"
+                    matched_song_title = best["title"] or "알 수 없는 곡"
+                    # PRO 플레이리스트: 추천 2~5위 (가수별 1곡, 순위 순서 유지)
+                    similar_songs_data = [{"title": p["title"], "artist": p["artist"]} for p in picks[1:5]]
+                    logger.info(f"[AnalysisService] 최종 매칭 완료! Song ID: {matched_song_id} | 종합 점수 {best['score']:.3f} (음색 코사인 {best_cosine:.3f}, 후보 {len(catalog)}곡)")
             else:
                 logger.error(f"[AnalysisService] 보컬 파일을 찾을 수 없습니다: {vocals_path}")
                 raise FileNotFoundError(f"보컬 분리 결과물(vocals.wav)이 생성되지 않았습니다.")
@@ -584,14 +454,8 @@ class AnalysisService:
 
             similarity_score = AnalysisService.cosine_to_score(best_cosine) if matched_song_id else 0
             
-            # [신규] 추천 사유 생성 (stats 포함)
-            recommend_reason = AnalysisService.generate_recommend_reason(
-                vt,
-                matched_artist if 'matched_artist' in locals() else "알 수 없는 아티스트",
-                ap,
-                best_song_pitch if 'best_song_pitch' in locals() else 0.0,
-                vocal_stats
-            ) if matched_song_id else ""
+            # 추천 사유: 음색 순위·음역·키를 측정값 그대로 설명
+            recommend_reason = reason(best, user_voice) if matched_song_id else ""
 
             logger.info(f"[AnalysisService] 보컬 페르소나: {vocal_persona}")
             logger.info(f"[AnalysisService] 보컬 스탯: {vocal_stats}")
@@ -605,6 +469,10 @@ class AnalysisService:
                 matched_song_title if 'matched_song_title' in locals() else "알 수 없는 곡",
                 similar_songs_data if 'similar_songs_data' in locals() else []
             )
+            if matched_song_id:
+                # 키는 평균 음높이 대신 곡 음역과 녹음 음역을 맞춘 결과를 쓴다
+                octave = f" (한 옥타브 {'낮게' if best['octave'] < 0 else '높게'})" if best["octave"] else ""
+                pro_features["key"] = (f"{best['shift']:+d} Key" if best["shift"] else "원키 (Original Key)") + octave
 
             return {
                 "matched_song_id": matched_song_id,

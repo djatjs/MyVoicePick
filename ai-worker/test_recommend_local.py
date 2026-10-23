@@ -3,7 +3,10 @@ os.environ.setdefault('AWS_DEFAULT_REGION', 'ap-northeast-2')
 
 import unittest
 
-from recommend_local import combine, key_shift, rank, reason
+from recommend_local import combine
+from types import SimpleNamespace
+
+from voice_match import VERSION, catalog_from_songs, key_shift, rank, reason
 
 
 def song(artist, title, emb, lo, hi):
@@ -54,6 +57,14 @@ class RankTest(unittest.TestCase):
         user = combine([a, b])
         self.assertEqual(user['embedding'], [.5, .5])
         self.assertEqual(user['range'], {'pitch_midi_p10': 50., 'pitch_midi_p50': 56., 'pitch_midi_p90': 63.})
+
+    def test_db_catalog_keeps_only_current_voice_profiles(self):
+        voice = '{"voice": {"version": "%s", "embedding": [1, 0], "range": {"pitch_midi_p10": 50}}}'
+        rows = [SimpleNamespace(id=1, title='a', artist='A', analysis_profile=voice % VERSION),
+                SimpleNamespace(id=2, title='b', artist='B', analysis_profile=voice % 'old'),
+                SimpleNamespace(id=3, title='c', artist='C', analysis_profile='{"scope": "preview"}'),
+                SimpleNamespace(id=4, title='d', artist='D', analysis_profile='not json')]
+        self.assertEqual([s['id'] for s in catalog_from_songs(rows)], [1])
 
     def test_reason_states_key_and_range(self):
         pick = rank(USER, [song('A', '1', [1., 0.], 53, 62), song('B', '1', [0., 1.], 50, 55)], top=1)[0]
