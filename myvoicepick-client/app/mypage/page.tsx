@@ -18,7 +18,6 @@ import ProInsights from '../../components/mypage/ProInsights';
 interface LatestAnalysis {
   taskId: string;
   status: string;
-  vocalPersona?: string;
   matchedSongTitle?: string;
   matchedArtist?: string;
   similarityScore?: number;
@@ -132,7 +131,7 @@ export default function MyPage() {
           {latestAnalysis ? <section className="workspace-result-grid"><CoreInsights latestAnalysis={latestAnalysis} /><ProInsights latestAnalysis={latestAnalysis} /></section> : <section className="workspace-panel workspace-empty"><h2>{history.length ? '아직 완료된 분석이 없어요' : '첫 번째 목소리 기록을 남겨보세요'}</h2><p>{history.length ? '아래 기록에서 진행 상태를 확인하거나 새 분석을 시작하세요.' : '노래한 파일을 올리면 닮은 가수와 추천곡을 확인할 수 있어요.'}</p><Link href="/analyze" className="workspace-primary">첫 분석 시작하기</Link></section>}
           <section className="workspace-history"><div className="workspace-history-heading"><h2>분석 기록</h2><span>{history.length}건</span></div>
             {history.length ? <ul>{history.map(task => <li key={task.taskId}>
-              <Link className="workspace-history-link" href={`/analyze?taskId=${encodeURIComponent(task.taskId)}`}><div><h3>{task.matchedSongTitle || '음성 분석'}</h3><p>{task.matchedArtist || task.vocalPersona || '결과를 확인해주세요'}</p></div><span className="workspace-status">{task.status === 'COMPLETED' ? '분석 완료' : task.status === 'FAILED' ? '분석 실패' : task.status === 'PENDING' ? '분석 대기' : '분석 중'}</span><span className="workspace-history-action">결과 보기</span></Link>
+              <Link className="workspace-history-link" href={`/analyze?taskId=${encodeURIComponent(task.taskId)}`}><div><h3>{task.matchedSongTitle || '음성 분석'}</h3><p>{task.matchedArtist || '결과를 확인해주세요'}</p></div><span className="workspace-status">{task.status === 'COMPLETED' ? '분석 완료' : task.status === 'FAILED' ? '분석 실패' : task.status === 'PENDING' ? '분석 대기' : '분석 중'}</span><span className="workspace-history-action">결과 보기</span></Link>
               <button className="workspace-delete" onClick={event => handleDeleteHistory(event, task.taskId)} aria-label={`${task.matchedSongTitle || '음성 분석'} 기록 삭제`}><Trash2 size={17} aria-hidden="true" /></button>
             </li>)}</ul> : <p className="workspace-empty">아직 저장된 분석 기록이 없습니다.</p>}
           </section>

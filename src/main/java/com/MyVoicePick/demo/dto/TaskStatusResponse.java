@@ -26,7 +26,7 @@ public record TaskStatusResponse(
         Integer pitchHz,
         String recommendReason,
         String vocalPersona,           // [추가] 감성 보컬 타이틀
-        Map<String, Object> vocalStats, // [추가] 5가지 특성 수치 + 128포인트 DNA 배열 등
+        Map<String, Object> vocalStats, // 녹음에서 측정한 음역(range_low/high/center)과 음색이 닮은 가수
         String userPlan,               // [신규] 사용자 요금제 (FREE, PRO, STUDIO)
         Map<String, Object> proFeatures // [신규] PRO 유저 전용 솔루션 데이터
 ) {

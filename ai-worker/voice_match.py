@@ -69,6 +69,12 @@ def cosine(a, b):
     return float(a @ b / (np.linalg.norm(a) * np.linalg.norm(b) or 1.))
 
 
+def range_known(user):
+    """Enough notes heard to suggest a key: p10~p90 spans at least 7 semitones."""
+    # shortcut: 7반음 기준은 실험값. 녹음별 결과가 쌓이면 보정할 것
+    return user['pitch_midi_p90'] - user['pitch_midi_p10'] >= 7
+
+
 def center_gap(user, song, shift, octave):
     """Semitones the song's middle (p50, after the key change) sits above (+) or below (-) the recording's middle."""
     return song['pitch_midi_p50'] + shift + octave - user['pitch_midi_p50']
@@ -80,14 +86,16 @@ def rank(user, catalog, top=5):
     sims = np.array([cosine(user['embedding'], s['embedding']) for s in catalog])
     pct = sims.argsort().argsort() / max(len(sims) - 1, 1)
     scored = []
+    judge_key = range_known(user['range'])
     for song, sim, p in zip(catalog, sims, pct):
-        shift, octave, fit = key_shift(user['range'], song['range'])
+        # a narrow recording says little about where the voice can go; keep the original key and skip the fit
+        shift, octave, fit = key_shift(user['range'], song['range']) if judge_key else (0, 0, 1.)
         gap = center_gap(user['range'], song['range'], shift, octave)
         # sitting above the recording's middle is the strain; sitting lower is easy
         # shortcut: 6반음 위면 0점인 선형 감점은 실험값. 사용자 피드백이 쌓이면 보정할 것
         comfort = max(0., 1 - max(gap, 0.) / 6)
         scored.append({**song, 'similarity': float(sim), 'timbre_pct': float(p), 'shift': shift,
-                       'octave': octave, 'fit': fit, 'center_gap': gap,
+                       'octave': octave, 'fit': fit, 'center_gap': gap, 'key_judged': judge_key,
                        'score': .6 * p + .4 * (.5 * fit + .5 * comfort)})
     scored.sort(key=lambda s: -s['score'])
     picks, artists = [], set()
@@ -106,6 +114,30 @@ def similar_artists(user, catalog, top=3):
         by_artist.setdefault(s['artist'], []).append(s['embedding'])
     sims = [(a, cosine(user['embedding'], np.mean(e, axis=0))) for a, e in by_artist.items()]
     return sorted(sims, key=lambda x: -x[1])[:top]
+
+
+def result_fields(user, catalog):
+    """Analysis task fields from measurements only: the range heard, the closest singers, the picks with a
+    reason, the key and the Pro playlist. Persona, tags and 0~100 trait scores are left empty on purpose."""
+    r = user['range']
+    picks = rank(user, catalog) if catalog else []
+    best = picks[0] if picks else None
+    key = None
+    if best and best['key_judged']:
+        octave = f" (한 옥타브 {'낮게' if best['octave'] < 0 else '높게'})" if best['octave'] else ''
+        key = (f"{best['shift']:+d} Key" if best['shift'] else '원키 (Original Key)') + octave
+    return {
+        'matched_song_id': best['id'] if best else None,
+        'similarity_score': round((best['similarity'] + 1) / 2 * 100) if best else 0,
+        'pitch_hz': int(librosa.midi_to_hz(r['pitch_midi_p50'])),
+        'recommend_reason': reason(best, user) if best else '',
+        'voice_tags': [],
+        'vocal_persona': '',
+        'vocal_stats': {'version': VERSION, 'range_low': note(r['pitch_midi_p10']),
+                        'range_high': note(r['pitch_midi_p90']), 'range_center': note(r['pitch_midi_p50']),
+                        'similar_artists': [a for a, _ in similar_artists(user, catalog)] if catalog else []},
+        'pro_features': {'key': key, 'playlist': [{'title': p['title'], 'artist': p['artist']} for p in picks[1:5]]},
+    }
 
 
 def catalog_from_songs(songs):
@@ -130,7 +162,9 @@ def reason(song, user):
     r = song['range']
     parts = [f"음색이 카탈로그 곡 중 상위 {round((1 - song['timbre_pct']) * 100) or 1}%로 가까워요"]
     span = f"곡의 주 음역 {note(r['pitch_midi_p10'])}~{note(r['pitch_midi_p90'])}"
-    if song['shift'] == 0 and song['octave'] == 0:
+    if not song.get('key_judged', True):
+        parts.append(f'{span}예요. 이번 녹음에서 들린 음역이 좁아서 키는 판단하지 않았어요')
+    elif song['shift'] == 0 and song['octave'] == 0:
         parts.append(f'{span}가 녹음에서 들린 음역 안에 {song["fit"]:.0%} 들어와 원키로 시작해 보세요')
     else:
         key = f"{song['shift']:+d}키" if song['shift'] else '원키'

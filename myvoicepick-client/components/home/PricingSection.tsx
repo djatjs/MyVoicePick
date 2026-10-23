@@ -49,7 +49,7 @@ export function PricingSection() {
       <header className="workspace-heading pricing-heading">
         <p className="workspace-kicker">내 목소리에 맞는 이용 방식</p>
         <h1>먼저 발견하고,<br />필요한 만큼 더 깊게.</h1>
-        <p className="workspace-description">가수 매칭과 추천곡은 무료로 경험하고,<br className="hidden sm:block" /> 연습 가이드가 필요할 때 Pro를 선택하세요.</p>
+        <p className="workspace-description">가수 매칭과 추천곡은 무료로 경험하고,<br className="hidden sm:block" /> 추천 키와 더 많은 곡이 필요할 때 Pro를 선택하세요.</p>
       </header>
       <aside className="pricing-test-note"><strong>현재 테스트 결제로 운영 중입니다.</strong><p>아래는 플랜 기준 요금입니다. 현재 결제 모듈에는 테스트 금액 100원이 적용되어 있으며, 결제 전 표시 금액을 확인해주세요.</p></aside>
       <div className="pricing-plans">
@@ -59,8 +59,8 @@ export function PricingSection() {
           <Link href="/analyze" className="workspace-secondary">무료로 분석 시작하기</Link>
         </section>
         <section className="workspace-panel pricing-plan pricing-plan-pro">
-          <div><p className="workspace-kicker">다음 연습의 힌트가 필요할 때</p><h2>Pro</h2><p className="pricing-price">19,000<span>원 / 월 기준</span></p><p className="workspace-note">기본 분석에 연습 가이드를 더해요</p></div>
-          <ul><li><Check aria-hidden="true" /> Free의 기본 분석 기능</li><li><Check aria-hidden="true" /> 추천 키와 보컬 연습 가이드</li><li><Check aria-hidden="true" /> 추가 추천곡 플레이리스트</li></ul>
+          <div><p className="workspace-kicker">더 많은 선택지가 필요할 때</p><h2>Pro</h2><p className="pricing-price">19,000<span>원 / 월 기준</span></p><p className="workspace-note">기본 분석에 추천 키와 추가 추천곡을 더해요</p></div>
+          <ul><li><Check aria-hidden="true" /> Free의 기본 분석 기능</li><li><Check aria-hidden="true" /> 곡별 추천 키</li><li><Check aria-hidden="true" /> 추가 추천곡 플레이리스트</li></ul>
           <button className="workspace-primary" disabled={checking} onClick={openPayment}>{checking ? '계정 확인 중' : 'Pro 테스트 결제하기'}</button>
         </section>
       </div>
@@ -70,7 +70,7 @@ export function PricingSection() {
         <table><caption className="sr-only">Free와 Pro 제공 기능 비교</caption><thead><tr><th scope="col">제공 기능</th><th scope="col">Free</th><th scope="col">Pro</th></tr></thead><tbody>
           <tr><th scope="row">가수 매칭 · 추천곡</th><td>제공</td><td>제공</td></tr>
           <tr><th scope="row">목소리 특징 · 분석 기록</th><td>제공</td><td>제공</td></tr>
-          <tr><th scope="row">추천 키 · 연습 가이드</th><td>미제공</td><td>제공</td></tr>
+          <tr><th scope="row">추천 키</th><td>미제공</td><td>제공</td></tr>
           <tr><th scope="row">추가 추천 플레이리스트</th><td>미제공</td><td>제공</td></tr>
         </tbody></table>
         <p className="workspace-note">분석 결과와 제공되는 세부 정보는 업로드한 음성과 분석 데이터에 따라 달라집니다. 분석이 진행 중인 동안에는 새 분석을 시작할 수 없습니다.</p>

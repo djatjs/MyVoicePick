@@ -21,7 +21,7 @@ export default function Page() {
           <details><summary>파일이 업로드되지 않아요</summary><p>파일 형식과 크기를 확인하고 로그인이 유지되는지 확인해주세요. 확장자만 바꾸는 대신 녹음 앱에서 지원 형식으로 내보내세요.</p></details>
           <details><summary>분석이 끝나지 않거나 실패했어요</summary><p>대기 중이거나 처리에 시간이 걸릴 수 있습니다. 오류 안내가 표시되면 목소리가 더 선명한 파일로 다시 시도하세요. 기존 작업이 진행 중이면 완료 또는 실패 상태가 된 뒤 새 분석을 시작할 수 있습니다.</p></details>
           <details><summary>분석 기록은 어디에서 관리하나요?</summary><p>마이페이지에서 내 계정의 분석 기록을 다시 열거나 삭제할 수 있습니다. 분석 기록 삭제와 원본 음성 파일의 보관은 서로 다른 항목입니다.</p></details>
-          <details><summary>유료 플랜이 꼭 필요한가요?</summary><p>닮은 가수, 추천곡과 기본 목소리 특징은 무료로 확인할 수 있습니다. 추천 키와 연습 가이드가 필요하다면 <Link href="/pricing">요금제를 비교해보세요.</Link></p></details>
+          <details><summary>유료 플랜이 꼭 필요한가요?</summary><p>닮은 가수, 추천곡과 기본 목소리 특징은 무료로 확인할 수 있습니다. 추천 키와 추가 추천곡이 필요하다면 <Link href="/pricing">요금제를 비교해보세요.</Link></p></details>
         </section>
         <div className="info-closing"><p>내 목소리에 어울리는 다음 곡을 찾아보세요.</p><Link href="/analyze" className="workspace-primary">내 목소리 분석하기</Link></div>
       </main>

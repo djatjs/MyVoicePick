@@ -6,7 +6,7 @@ import unittest
 from recommend_local import combine
 from types import SimpleNamespace
 
-from voice_match import VERSION, catalog_from_songs, key_shift, rank, reason
+from voice_match import VERSION, catalog_from_songs, key_shift, rank, reason, result_fields
 
 
 def song(artist, title, emb, lo, hi):
@@ -57,6 +57,33 @@ class RankTest(unittest.TestCase):
         user = combine([a, b])
         self.assertEqual(user['embedding'], [.5, .5])
         self.assertEqual(user['range'], {'pitch_midi_p10': 50., 'pitch_midi_p50': 56., 'pitch_midi_p90': 63.})
+
+    def test_result_fields_report_measurements_not_trait_scores(self):
+        catalog = [song('A', '1', [1., 0.], 53, 62), song('B', '1', [.8, .2], 52, 58), song('C', '1', [0., 1.], 50, 55)]
+        for i, s in enumerate(catalog):
+            s['id'] = i + 1
+        result = result_fields(USER, catalog)
+        self.assertEqual(result['matched_song_id'], 1)
+        self.assertEqual(result['pro_features'], {'key': '-2 Key', 'playlist': [{'title': '1', 'artist': 'B'},
+                                                                              {'title': '1', 'artist': 'C'}]})
+        self.assertEqual({k: result['vocal_stats'][k] for k in ('range_low', 'range_center', 'range_high')},
+                         {'range_low': 'D3', 'range_center': 'G3', 'range_high': 'C4'})
+        self.assertEqual(result['vocal_stats']['similar_artists'][0], 'A')
+        self.assertEqual((result['voice_tags'], result['vocal_persona']), ([], ''))
+        self.assertNotIn('guide', result['pro_features'])
+
+    def test_narrow_recording_gives_no_key(self):
+        narrow = {'embedding': [1., 0.], 'range': {'pitch_midi_p10': 52., 'pitch_midi_p50': 54., 'pitch_midi_p90': 57.}}
+        catalog = [song('A', '1', [1., 0.], 58, 66)]
+        catalog[0]['id'] = 1
+        result = result_fields(narrow, catalog)
+        self.assertIsNone(result['pro_features']['key'])
+        self.assertIn('키는 판단하지 않았어요', result['recommend_reason'])
+
+    def test_no_catalog_still_reports_range_without_a_match(self):
+        result = result_fields(USER, [])
+        self.assertIsNone(result['matched_song_id'])
+        self.assertEqual(result['vocal_stats']['range_high'], 'C4')
 
     def test_db_catalog_keeps_only_current_voice_profiles(self):
         voice = '{"voice": {"version": "%s", "embedding": [1, 0], "range": {"pitch_midi_p10": 50}}}'

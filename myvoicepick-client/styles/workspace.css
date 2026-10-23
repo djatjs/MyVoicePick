@@ -27,8 +27,6 @@
 .workspace-similarity { display: flex; align-items: baseline; gap: 16px; margin-top: 22px; color: #b5b9d8; font-size: 13px; }
 .workspace-similarity strong { color: #c4b5fd; font-size: 46px; line-height: 1.1; font-weight: 600; letter-spacing: -.05em; font-variant-numeric: tabular-nums; }
 .workspace-similarity strong span { font-size: 23px; margin-left: 3px; }
-.workspace-tags { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 20px; }
-.workspace-tags span { color: #cbd5e1; background: #ffffff08; padding: 5px 10px; border-radius: 6px; font-size: 12px; }
 .workspace-song { display: flex; flex-direction: column; align-items: flex-start; justify-content: space-between; gap: 22px; }
 .workspace-song .workspace-kicker { margin-bottom: 0; }
 .workspace-song h2 { font-size: clamp(26px, 2.7vw, 36px); font-weight: 650; line-height: 1.4; letter-spacing: -.04em; overflow-wrap: anywhere; }
@@ -42,10 +40,6 @@
 .workspace-stats > div { border-top: 1px solid #ffffff1a; padding-top: 16px; }
 .workspace-stats dt { color: #aab7ca; font-size: 13px; }
 .workspace-stats dd { font-size: 25px; font-weight: 600; margin-top: 8px; }
-.workspace-details { border-top: 1px solid #ffffff1a; margin-top: 30px; padding-top: 22px; }
-.workspace-details summary { cursor: pointer; color: #c4b5fd; font-size: 14px; }
-.workspace-spectrum { display: flex; align-items: flex-end; gap: 2px; height: 140px; margin-top: 24px; }
-.workspace-spectrum span { flex: 1; background: #9896f3; min-width: 0; border-radius: 2px 2px 0 0; }
 .workspace-pro { display: grid; grid-template-columns: 1fr 1.5fr; gap: 32px; }
 .workspace-pro .workspace-secondary { margin-top: 20px; }
 .workspace-pro-content { display: grid; gap: 24px; }
@@ -77,7 +71,6 @@
 .workspace-empty h2 { font-size: 24px; color: #f8fafc; font-weight: 600; margin-bottom: 12px; }
 .workspace-empty p { font-size: 14px; }
 .workspace-empty .workspace-primary, .workspace-empty .workspace-secondary { margin-top: 22px; }
-.workspace-persona { color: #d3dbe7; font-size: 15px; margin-top: 22px; }
 .workspace-history { margin-top: 44px; }
 .workspace-history-heading { display: flex; align-items: baseline; gap: 14px; margin-bottom: 18px; }
 .workspace-history-heading h2 { font-size: 23px; font-weight: 600; }

@@ -76,7 +76,7 @@ public class AnalysisTask {
     @Column(name = "vocal_persona", columnDefinition = "TEXT")
     private String vocalPersona;
 
-    // [추가] 보컬 스탯 (JSON 문자열: warmth, clarity, power, rhythm, emotion)
+    // 녹음에서 측정한 목소리 정보 (JSON 문자열: range_low/high/center, similar_artists)
     @Column(name = "vocal_stats", columnDefinition = "TEXT")
     private String vocalStatsJson;
 

@@ -18,6 +18,6 @@ function CheckoutContent() {
 
 export default function CheckoutPage() {
   return (
-    <div className="mvp-canvas workspace-page min-h-screen flex flex-col"><MvpNav /><main className="workspace-container payment-page"><header className="workspace-heading"><p className="workspace-kicker">마지막으로 한 번 더 확인하세요</p><h1>선택한 플랜으로<br />다음 연습을 준비하세요.</h1></header><Suspense fallback={<p role="status">결제 화면을 준비하고 있어요.</p>}><CheckoutContent /></Suspense></main><MvpFooter /></div>
+    <div className="mvp-canvas workspace-page min-h-screen flex flex-col"><MvpNav /><main className="workspace-container payment-page"><header className="workspace-heading"><p className="workspace-kicker">마지막으로 한 번 더 확인하세요</p><h1>선택한 플랜으로<br />다음에 부를 곡을 더 넓게 찾아보세요.</h1></header><Suspense fallback={<p role="status">결제 화면을 준비하고 있어요.</p>}><CheckoutContent /></Suspense></main><MvpFooter /></div>
   );
 }

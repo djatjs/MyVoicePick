@@ -19,14 +19,20 @@ const render = (result) => renderToStaticMarkup(React.createElement(AnalysisResu
 const minimal = { title: '추천곡', artist: '가수' };
 const missing = render(minimal);
 assert.match(missing, /disabled=""/);
-assert.match(missing, /상세 음성 데이터가 없습니다/);
+assert.match(missing, /이전 방식으로 분석한 기록/);
 assert.doesNotMatch(missing, /undefined|NaN|분석 중/);
-const full = render({ ...minimal, previewUrl: 'https://example.com/audio', similarityScore: 92, userPlan: 'PRO', proFeatures: { key: '-2', guide: '연습 안내', playlist: [] }, vocalStats: { warmth: 70, clarity: 80, power: 60, rhythm: 50, emotion: 90, dna_128_points: Array(128).fill(40) } });
+const full = render({ ...minimal, previewUrl: 'https://example.com/audio', similarityScore: 92, userPlan: 'PRO', proFeatures: { key: '-2 Key', playlist: [{ title: '다른 곡', artist: '가수2' }] }, vocalStats: { range_low: 'F3', range_high: 'A4', range_center: 'C#4', similar_artists: ['브리즈', '버즈'] } });
 assert.match(full, /미리듣기/);
-assert.match(full, /연습 안내/);
-assert.match(full, /상세 음성 데이터 보기/);
-assert.doesNotMatch(full, /Pro 기능 알아보기|disabled=""/);
-assert.match(render({ ...minimal, userPlan: 'STUDIO', proFeatures: { key: 'C', guide: 'Studio 안내', playlist: [] } }), /Studio 안내/);
+assert.match(full, /F3 ~ A4/);
+assert.match(full, /브리즈, 버즈/);
+assert.match(full, /-2 Key/);
+assert.match(full, /함께 불러볼 곡/);
+assert.doesNotMatch(full, /Pro 기능 알아보기|disabled=""|연습 가이드|따뜻함|표현력/);
+// analyses saved by the old method still carry 0~100 trait scores; they must not be shown
+const old = render({ ...minimal, vocalStats: { warmth: 70, clarity: 80, power: 60, rhythm: 50, emotion: 90 } });
+assert.match(old, /이전 방식으로 분석한 기록/);
+assert.doesNotMatch(old, />70<|따뜻함/);
+assert.match(render({ ...minimal, userPlan: 'STUDIO', proFeatures: { key: 'C', playlist: [] } }), /추천 키<\/h3><p>C/);
 assert.match(render({ ...minimal, similarityScore: 0 }), /0<span>%/);
 assert.match(render({ ...minimal, userPlan: 'PRO' }), /추천 키가 없습니다/);
 const { DashboardPreview } = load('../components/home/DashboardPreview.tsx');
