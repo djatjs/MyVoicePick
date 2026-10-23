@@ -239,13 +239,32 @@ def evaluate():
         print(f'{name:<14} 같은 가수 1위 {top1:.0%}, 5위 안 {top5:.0%}')
 
 
-def recommend(audio, vocals_path=None, output=BASE.parent / 'tmp' / 'recommend'):
+def combine(profiles):
+    """One singer from several recordings: average voice, and every note heard in any of them counts."""
+    ranges = [p['range'] for p in profiles]
+    # shortcut: 녹음별 분위수를 min/평균/max로 합침. 녹음이 많아지면 F0 프레임을 모아 분위수를 다시 계산할 것
+    return {'embedding': np.mean([p['embedding'] for p in profiles], axis=0).tolist(),
+            'range': {'pitch_midi_p10': min(r['pitch_midi_p10'] for r in ranges),
+                      'pitch_midi_p50': float(np.mean([r['pitch_midi_p50'] for r in ranges])),
+                      'pitch_midi_p90': max(r['pitch_midi_p90'] for r in ranges)}}
+
+
+def recommend(audios, vocals_path=None, output=BASE.parent / 'tmp' / 'recommend'):
     from local_analysis import separate_vocals
     catalog = list(load_catalog().values())
     if not catalog:
         raise SystemExit('카탈로그가 없습니다. 먼저 build를 실행하세요.')
-    vocals, _ = librosa.load(vocals_path or separate_vocals(audio, BASE.parent / 'tmp' / 'audio-analysis' / 'separation-cache'), sr=SR)
-    user = voice_features(vocals)
+    profiles = []
+    for audio in audios:
+        vocals, _ = librosa.load(vocals_path or separate_vocals(audio, BASE.parent / 'tmp' / 'audio-analysis' / 'separation-cache'), sr=SR)
+        profiles.append(voice_features(vocals))
+        if len(audios) > 1:
+            r = profiles[-1]['range']
+            print(f"[{Path(audio).name}] 음역 {note(r['pitch_midi_p10'])}~{note(r['pitch_midi_p90'])} · 닮은 가수 "
+                  f"{', '.join(a for a, _ in similar_artists(profiles[-1], catalog))} · 추천 "
+                  f"{', '.join(s['artist'] + ' - ' + s['title'] for s in rank(profiles[-1], catalog))}")
+    user = combine(profiles) if len(profiles) > 1 else profiles[0]
+    audio = audios[0] if len(audios) == 1 else Path(f'녹음 {len(audios)}개 합산')
     picks, artists = rank(user, catalog), similar_artists(user, catalog)
     r = user['range']
     print(f"녹음에서 들린 음역 {note(r['pitch_midi_p10'])}~{note(r['pitch_midi_p90'])} (중심 {note(r['pitch_midi_p50'])})")
@@ -265,7 +284,8 @@ def recommend(audio, vocals_path=None, output=BASE.parent / 'tmp' / 'recommend')
             f"<p>닮은 가수: {esc(', '.join(a for a, _ in artists))}</p><ol>{rows}</ol>"
             f"<p><small>{VERSION} · 카탈로그 {len(catalog)}곡 · 유료 API 미사용</small></p>")
     (folder / 'report.html').write_text(page, encoding='utf-8')
-    (folder / 'report.json').write_text(json.dumps({'user': user, 'picks': picks, 'similar_artists': artists},
+    (folder / 'report.json').write_text(json.dumps({'inputs': [str(a) for a in audios], 'user': user,
+                                                    'picks': picks, 'similar_artists': artists},
                                                    ensure_ascii=False), encoding='utf-8')
     print('리포트:', (folder / 'report.html').resolve())
 
@@ -278,7 +298,7 @@ def main():
     b.add_argument('--melon', type=int, default=0, help='멜론 장르별 차트에서 장르당 가져올 곡 수')
     sub.add_parser('eval')
     r = sub.add_parser('recommend')
-    r.add_argument('audio', type=Path)
+    r.add_argument('audio', type=Path, nargs='+', help='같은 사람의 녹음 여러 개를 주면 합쳐서 추천')
     r.add_argument('--vocals', type=Path)
     args = parser.parse_args()
     if args.cmd == 'build':

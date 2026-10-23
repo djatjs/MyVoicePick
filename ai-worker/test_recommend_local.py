@@ -3,7 +3,7 @@ os.environ.setdefault('AWS_DEFAULT_REGION', 'ap-northeast-2')
 
 import unittest
 
-from recommend_local import key_shift, rank, reason
+from recommend_local import combine, key_shift, rank, reason
 
 
 def song(artist, title, emb, lo, hi):
@@ -47,6 +47,13 @@ class RankTest(unittest.TestCase):
     def test_low_song_keeps_original_key(self):
         shift, octave, _ = key_shift(USER['range'], song('a', 't', [], 50, 54)['range'])
         self.assertEqual((shift, octave), (0, 0))
+
+    def test_combined_recordings_average_voice_and_widen_range(self):
+        a = {'embedding': [1., 0.], 'range': {'pitch_midi_p10': 50., 'pitch_midi_p50': 54., 'pitch_midi_p90': 58.}}
+        b = {'embedding': [0., 1.], 'range': {'pitch_midi_p10': 53., 'pitch_midi_p50': 58., 'pitch_midi_p90': 63.}}
+        user = combine([a, b])
+        self.assertEqual(user['embedding'], [.5, .5])
+        self.assertEqual(user['range'], {'pitch_midi_p10': 50., 'pitch_midi_p50': 56., 'pitch_midi_p90': 63.})
 
     def test_reason_states_key_and_range(self):
         pick = rank(USER, [song('A', '1', [1., 0.], 53, 62), song('B', '1', [0., 1.], 50, 55)], top=1)[0]
