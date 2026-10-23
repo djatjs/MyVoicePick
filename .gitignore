@@ -52,3 +52,7 @@ tmp/
 *.pptx
 *.pptx.inspect.ndjson
 portfolio_guide.md
+
+### ai-worker generated audio ###
+ai-worker/temp/
+ai-worker/temp_demucs/
