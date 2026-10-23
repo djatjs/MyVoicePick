@@ -302,7 +302,7 @@ class AnalysisService:
 
 
     @staticmethod
-    def extract_audio_features(y: np.ndarray, sr: int) -> dict:
+    def extract_audio_features(y: np.ndarray, sr: int, include_song_profile=False) -> dict:
         """Librosa 로부터 핵심 음향 지표들을 효율적으로 추출한다.
         최적화를 위해 피치 분석은 16kHz로 다운샘플링하여 진행합니다.
         """
@@ -317,6 +317,13 @@ class AnalysisService:
             y_voiced = np.concatenate([y_low[start:end] for start, end in intervals])
         else:
             y_voiced = y_low  # 유효 구간이 없으면 원본 그대로 사용
+
+        if include_song_profile:
+            from song_features import summarize_pitch
+            observed_f0, _, _ = librosa.pyin(y_low, fmin=librosa.note_to_hz("C2"),
+                fmax=librosa.note_to_hz("C7"), sr=target_sr, hop_length=1024)
+            song_profile = summarize_pitch(observed_f0, 1024 / target_sr)
+            song_profile["duration_seconds"] = len(y) / sr
 
         # 1. Pitch & Emotion (pyin 최적화: hop_length 늘림)
         # 16kHz에서 hop_length=1024는 약 64ms 간격입니다.
@@ -357,6 +364,7 @@ class AnalysisService:
         dna_128 = [int(v + 80) for v in np.mean(mel_spec_db, axis=1)]
 
         return {
+            **({"song_profile": song_profile} if include_song_profile else {}),
             "pitch": avg_pitch,
             "mfcc": avg_mfcc,
             "emotion": emotion,

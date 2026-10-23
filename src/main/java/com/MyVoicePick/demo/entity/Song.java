@@ -11,7 +11,7 @@ import lombok.NoArgsConstructor;
  *
  * [설계 의도]
  * 1. AI 서버에서 분석한 음성 데이터(MFCC, ZCR, RMS)를 바탕으로 Cosine Similarity를 계산할 대상들입니다.
- * 2. MFCC 벡터는 17차원 배열 형태를 가집니다. 이를 DB에 저장하기 위해 문자열(JSON 문자열 등) 타입(TEXT)으로
+ * 2. MFCC 벡터는 20차원 배열 형태를 가집니다. 이를 DB에 저장하기 위해 문자열(JSON 문자열 등) 타입(TEXT)으로
  * 관리합니다.
  * MySQL 최신 버전을 쓴다면 추후 @Column(columnDefinition = "JSON") 등으로 고도화할 수 있지만,
  * 현재는 가장 호환성이 높은 TEXT 타입으로 매핑을 우선 설정합니다.
@@ -32,7 +32,7 @@ public class Song {
     @Column(nullable = false)
     private String artist;
 
-    // 17차원의 MFCC 값은 길이가 길 수 있으므로 TEXT로 설정
+    // 20차원의 MFCC 값은 길이가 길 수 있으므로 TEXT로 설정
     @Column(name = "mfcc_vector", columnDefinition = "TEXT", nullable = false)
     private String mfccVector;
 
@@ -47,6 +47,27 @@ public class Song {
 
     @Column(name = "preview_url")
     private String previewUrl;
+
+    @Column(name = "pitch")
+    private Double pitch;
+
+    @Column(length = 100)
+    private String genre;
+
+    @Column(name = "source_track_id", length = 100)
+    private String sourceTrackId;
+
+    @Column(name = "source_track_title")
+    private String sourceTrackTitle;
+
+    @Column(name = "source_track_url", length = 500)
+    private String sourceTrackUrl;
+
+    @Column(name = "analysis_profile", columnDefinition = "TEXT")
+    private String analysisProfile;
+
+    @Column(name = "editorial_notes", columnDefinition = "TEXT")
+    private String editorialNotes;
 
     @Builder
     public Song(String title, String artist, String mfccVector, Float zcrValue, Float rmsValue, String albumCoverUrl,

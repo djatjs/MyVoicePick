@@ -18,6 +18,8 @@ from sqlalchemy import inspect
 from database import engine, SessionLocal
 from models import Song
 from analysis_service import AnalysisService
+from song_features import FEATURE_VERSION
+from datetime import datetime, timezone
 
 warnings.filterwarnings('ignore')
 
@@ -30,6 +32,7 @@ MELON_GENRE_URL = "https://www.melon.com/genre/song_list.htm"
 MELON_PAGE_SIZE = 50
 MELON_GENRES = {
     "GN0100": "발라드",
+    "GN0200": "댄스",
     "GN0400": "R&B/Soul",
     "GN0600": "록/메탈",
     "GN0500": "인디음악",
@@ -98,7 +101,7 @@ def load_target_songs_from_melon(per_genre: int) -> list:
 
                     if identifier not in seen and len(genre_songs) < per_genre:
                         seen.add(identifier)
-                        genre_songs.append({"title": title, "artist": artist})
+                        genre_songs.append({"title": title, "artist": artist, "genre": genre_name})
 
                 if page_count == 0:
                     break
@@ -340,6 +343,9 @@ def fetch_meta(session: requests.Session, entry: dict):
     if cover_url:
         cover_url = cover_url.replace("100x100bb", "600x600bb")
 
+    entry["source_track_id"] = str(track["trackId"])
+    entry["source_track_title"] = track.get("trackName")
+    entry["source_track_url"] = track.get("trackViewUrl")
     entry["preview_url"] = track["previewUrl"]
     entry["album_cover_url"] = cover_url
     entry["itunes_track"] = f"{name[0]} - {name[1]}"
@@ -416,14 +422,20 @@ def extract_song_features(vocal_path: str):
     if voiced_sec < MIN_VOICED_SEC:
         raise RuntimeError(f"보컬 구간이 너무 짧습니다. ({voiced_sec:.1f}초)")
 
-    features = AnalysisService.extract_audio_features(y, sr)
+    features = AnalysisService.extract_audio_features(y, sr, include_song_profile=True)
     if features["pitch"] <= 0:
         raise RuntimeError("Pitch를 추출하지 못했습니다.")
 
-    return features["pitch"], features["mfcc"].tolist(), voiced_sec
+    profile = features["song_profile"]
+    if profile["pitched_seconds"] < MIN_VOICED_SEC:
+        raise RuntimeError("유효한 음높이 구간이 너무 짧습니다.")
+    profile.update({"feature_version": FEATURE_VERSION, "scope": "preview",
+        "source": "itunes", "source_offset_seconds": None,
+        "analyzed_at": datetime.now(timezone.utc).isoformat()})
+    return features["pitch"], features["mfcc"].tolist(), profile
 
 
-def save_song(db, entry: dict, pitch: float, mfcc: list):
+def save_song(db, entry: dict, pitch: float, mfcc: list, profile: dict):
     song = db.query(Song).filter(Song.title == entry["title"], Song.artist == entry["artist"]).first()
     if song is None:
         song = Song(title=entry["title"], artist=entry["artist"])
@@ -431,6 +443,11 @@ def save_song(db, entry: dict, pitch: float, mfcc: list):
 
     song.album_cover_url = entry.get("album_cover_url")
     song.preview_url = entry.get("preview_url")
+    song.genre = entry.get("genre")
+    song.source_track_id = entry.get("source_track_id")
+    song.source_track_title = entry.get("source_track_title")
+    song.source_track_url = entry.get("source_track_url")
+    song.analysis_profile = json.dumps(profile, ensure_ascii=False, allow_nan=False)
     song.pitch = pitch
     song.mfcc_vector = json.dumps(mfcc)
     try:
@@ -448,7 +465,7 @@ def check_songs_table():
         sys.exit(1)
 
     columns = {col["name"] for col in inspector.get_columns("songs")}
-    required = {"title", "artist", "album_cover_url", "preview_url", "pitch", "mfcc_vector"}
+    required = {"title", "artist", "album_cover_url", "preview_url", "pitch", "mfcc_vector", "genre", "source_track_id", "source_track_title", "source_track_url", "analysis_profile", "editorial_notes"}
     missing = required - columns
     if missing:
         print(f"🚨 오류: songs 테이블에 컬럼이 없습니다: {', '.join(sorted(missing))}")
@@ -522,9 +539,9 @@ def process_batch(keys: list, state: dict, session: requests.Session, db):
                 if error:
                     raise RuntimeError(error)
 
-                pitch, mfcc, voiced_sec = extract_song_features(_vocal_path(audio_paths[key]))
-                save_song(db, entry, pitch, mfcc)
-                print(f"  ✅ [{label}] 저장 완료 (Pitch: {pitch:.2f}Hz, 보컬 {voiced_sec:.1f}초)")
+                pitch, mfcc, profile = extract_song_features(_vocal_path(audio_paths[key]))
+                save_song(db, entry, pitch, mfcc, profile)
+                print(f"  ✅ [{label}] 저장 완료 (Pitch: {pitch:.2f}Hz, 보컬 {profile['pitched_seconds']:.1f}초)")
                 mark(state, key, DONE)
             except Exception as e:
                 print(f"  ❌ [{label}] 에러 발생: {e}")
@@ -539,6 +556,7 @@ def main():
     parser.add_argument("--retry-failed", action="store_true", help="이전에 실패한 곡을 다시 시도")
     parser.add_argument("--limit", type=int, default=None, help="이번 실행에서 처리할 최대 곡 수")
     parser.add_argument("--batch-size", type=int, default=20, help="Demucs에 한 번에 넘길 곡 수")
+    parser.add_argument("--reanalyze", action="store_true", help="기존 곡도 새 특징으로 다시 분석 (limit 적용)")
     args = parser.parse_args()
 
     print("🚀 iTunes 미리듣기 기반 음원 자동 수집 및 보컬 분석 배치를 시작합니다...")
@@ -565,7 +583,11 @@ def main():
             keys.append(key)
 
             entry = state.setdefault(key, {"title": song["title"], "artist": song["artist"], "status": PENDING, "reason": None})
-            if key in existing:
+            entry["genre"] = song["genre"]
+            if args.reanalyze:
+                entry["status"] = PENDING
+                entry["reason"] = None
+            elif key in existing:
                 entry["status"] = DONE
                 entry["reason"] = None
             elif entry["status"] == DONE:
