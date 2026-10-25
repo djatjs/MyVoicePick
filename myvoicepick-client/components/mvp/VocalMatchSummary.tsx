@@ -1,7 +1,8 @@
+import Image from 'next/image';
 import { AudioLines, Music2 } from 'lucide-react';
 
 interface Props {
-  result: { artist: string; title: string; similarityScore?: number; previewUrl?: string };
+  result: { artist: string; title: string; similarityScore?: number; previewUrl?: string; albumCoverUrl?: string };
   example?: boolean;
 }
 
@@ -24,7 +25,8 @@ export function VocalMatchSummary({ result, example = false }: Props) {
           <div className="vocal-score"><strong>{result.similarityScore ?? '—'}<span>{result.similarityScore != null ? '%' : ''}</span></strong><span>음색 유사도</span></div>
         </div>
         <div className="vocal-track">
-          <div className="vocal-track-icon"><Music2 size={25} aria-hidden="true" /></div>
+          {/* unoptimized: covers come from external stores (iTunes, YouTube); serve as-is instead of allow-listing hosts */}
+          <div className="vocal-track-icon">{result.albumCoverUrl ? <Image src={result.albumCoverUrl} alt={`${result.title} 앨범 표지`} width={64} height={64} unoptimized /> : <Music2 size={25} aria-hidden="true" />}</div>
           <div className="vocal-track-copy"><p className="vocal-label">추천곡</p><h3>{result.title}</h3><p>{result.artist}</p></div>
           {!example && (result.previewUrl ? <a className="workspace-primary" href={result.previewUrl} target="_blank" rel="noopener noreferrer">미리듣기<span className="sr-only"> (새 창)</span></a> : <button className="workspace-secondary" disabled>미리듣기 없음</button>)}
         </div>

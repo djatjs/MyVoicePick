@@ -4,6 +4,7 @@ export interface MatchResult {
   title: string;
   artist: string;
   previewUrl?: string;
+  albumCoverUrl?: string;
   similarityScore?: number;
   pitchHz?: number;
   recommendReason?: string;

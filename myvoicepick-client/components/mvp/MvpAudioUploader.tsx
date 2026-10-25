@@ -60,6 +60,7 @@ export default function MvpAudioUploader() {
             title: data.matchedSongTitle || data.title || '제목 없음',
             artist: data.matchedArtist || data.artist || '아티스트 미상',
             previewUrl: data.previewUrl || data.preview_url,
+            albumCoverUrl: data.albumCoverUrl,
             similarityScore: data.similarityScore,
             pitchHz: data.pitchHz,
             recommendReason: data.recommendReason,
