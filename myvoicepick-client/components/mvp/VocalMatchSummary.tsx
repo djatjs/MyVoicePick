@@ -26,7 +26,7 @@ export function VocalMatchSummary({ result, example = false }: Props) {
         </div>
         <div className="vocal-track">
           {/* unoptimized: covers come from external stores (iTunes, YouTube); serve as-is instead of allow-listing hosts */}
-          <div className="vocal-track-icon">{result.albumCoverUrl ? <Image src={result.albumCoverUrl} alt={`${result.title} 앨범 표지`} width={64} height={64} unoptimized /> : <Music2 size={25} aria-hidden="true" />}</div>
+          <div className="vocal-track-icon">{result.albumCoverUrl ? <Image src={result.albumCoverUrl} alt={`${result.title} 앨범 표지`} width={112} height={112} unoptimized /> : <Music2 size={25} aria-hidden="true" />}</div>
           <div className="vocal-track-copy"><p className="vocal-label">추천곡</p><h3>{result.title}</h3><p>{result.artist}</p></div>
           {!example && (result.previewUrl ? <a className="workspace-primary" href={result.previewUrl} target="_blank" rel="noopener noreferrer">미리듣기<span className="sr-only"> (새 창)</span></a> : <button className="workspace-secondary" disabled>미리듣기 없음</button>)}
         </div>

@@ -28,6 +28,7 @@
 .vocal-summary-report .vocal-match { border-right: 1px solid #ffffff12; }
 .vocal-summary-report .vocal-track { flex-wrap: wrap; border-top: 0; margin: 0; padding: 28px; }
 .vocal-summary-report .vocal-track h3 { font-size: 24px; line-height: 1.4; }
+.vocal-summary-report .vocal-track-icon { width: 112px; height: 112px; border-radius: 10px; }
 .vocal-summary-report .vocal-track .workspace-secondary { font-size: 12px; cursor: default; color: #aab7ca; }
 @media (max-width: 767px) {
   .vocal-summary { max-width: 520px; width: 100%; }
@@ -39,6 +40,7 @@
   .vocal-summary-report .vocal-summary-body { grid-template-columns: 1fr; }
   .vocal-summary-report .vocal-match { border-right: 0; }
   .vocal-summary-report .vocal-track { padding: 23px 20px; border-top: 1px solid #ffffff12; }
+  .vocal-summary-report .vocal-track-icon { width: 88px; height: 88px; }
   .vocal-summary-report .vocal-track > .workspace-primary,
   .vocal-summary-report .vocal-track > .workspace-secondary { flex-basis: 100%; width: 100%; }
 }
