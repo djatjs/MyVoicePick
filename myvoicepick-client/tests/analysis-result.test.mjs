@@ -36,7 +36,8 @@ assert.doesNotMatch(full, /Pro 기능 알아보기|disabled=""|연습 가이드|
 const old = render({ ...minimal, vocalStats: { warmth: 70, clarity: 80, power: 60, rhythm: 50, emotion: 90 } });
 assert.match(old, /이전 방식으로 분석한 기록/);
 assert.doesNotMatch(old, />70<|따뜻함/);
-assert.match(render({ ...minimal, userPlan: 'STUDIO', proFeatures: { key: 'C', playlist: [] } }), /추천 키<\/h3><p>C/);
+assert.match(render({ ...minimal, userPlan: 'STUDIO', proFeatures: { key: 'C', playlist: [] } }), /추천 키<\/h3><p class="workspace-pro-key">C/);
+assert.match(full, /<ol class="workspace-playlist"><li><a [^>]*><span class="workspace-playlist-no"[^>]*>1<\/span><span class="workspace-playlist-copy"><strong>다른 곡<\/strong><span>가수2<\/span>/);
 assert.match(render({ ...minimal, similarityScore: 0 }), /0<span>%/);
 assert.match(render({ ...minimal, userPlan: 'PRO' }), /추천 키가 없습니다/);
 const { DashboardPreview } = load('../components/home/DashboardPreview.tsx');

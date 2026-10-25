@@ -1,3 +1,4 @@
+import { ExternalLink } from 'lucide-react';
 import { VocalMatchSummary } from './VocalMatchSummary';
 
 export interface MatchResult {
@@ -34,8 +35,8 @@ export function AnalysisResult({ result, onUpgrade }: { result: MatchResult; onU
       <section className="workspace-panel workspace-pro">
         <div><p className="workspace-kicker">Pro 추천</p><h2 className="workspace-section-title">추천 키와 더 많은 곡</h2></div>
         {isPro ? <div className="workspace-pro-content">
-          <div><h3>추천 키</h3><p>{result.proFeatures?.key || '이 분석에는 추천 키가 없습니다.'}</p></div>
-          {!!result.proFeatures?.playlist?.length && <div><h3>함께 불러볼 곡</h3><ul>{result.proFeatures.playlist.map((song, index) => <li key={index}><a href={`https://www.youtube.com/results?search_query=${encodeURIComponent(`${song.artist} ${song.title}`)}`} target="_blank" rel="noopener noreferrer">{song.title} <span>{song.artist} · YouTube에서 찾기</span><span className="sr-only"> (새 창)</span></a></li>)}</ul></div>}
+          <div><h3>추천 키</h3>{result.proFeatures?.key ? <p className="workspace-pro-key">{result.proFeatures.key}</p> : <p>이 분석에는 추천 키가 없습니다.</p>}</div>
+          {!!result.proFeatures?.playlist?.length && <div><h3>함께 불러볼 곡</h3><ol className="workspace-playlist">{result.proFeatures.playlist.map((song, index) => <li key={index}><a href={`https://www.youtube.com/results?search_query=${encodeURIComponent(`${song.artist} ${song.title}`)}`} target="_blank" rel="noopener noreferrer"><span className="workspace-playlist-no" aria-hidden="true">{index + 1}</span><span className="workspace-playlist-copy"><strong>{song.title}</strong><span>{song.artist}</span></span><span className="workspace-playlist-action">YouTube <ExternalLink size={13} aria-hidden="true" /><span className="sr-only"> (새 창)</span></span></a></li>)}</ol></div>}
         </div> : <div><p className="workspace-description">추천 키와 함께 불러볼 곡은 Pro에서 확인할 수 있어요.</p><button className="workspace-secondary" onClick={onUpgrade}>Pro 기능 알아보기</button></div>}
       </section>
     </div>
