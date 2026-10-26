@@ -43,7 +43,7 @@ export default function MyPage() {
     if (!token) return;
 
     try {
-      const res = await fetch(`/api/v1/analyze/${taskId}`, {
+      const res = await fetch(`/api/v1/analyses/${encodeURIComponent(taskId)}`, {
         method: 'DELETE',
         headers: {
           'Authorization': `Bearer ${token}`
@@ -81,35 +81,15 @@ export default function MyPage() {
         setUserEmail(account.email);
         setUserPlan(account.plan);
 
-        // 1. 최신 분석 결과 가져오기
-        const resLatest = await fetch('/api/v1/analyze/my-latest', {
+        // 내 분석 목록(최신순). 맨 앞이 가장 최근 분석이다
+        const resAnalyses = await fetch('/api/v1/analyses', {
           headers: { 'Authorization': `Bearer ${token}` }
         });
-        if (resLatest.status === 401) { setLoginToken(null); router.replace('/login'); return; }
-        if (!resLatest.ok) throw new Error('최근 분석을 불러오지 못했습니다.');
-        setLatestAnalysis(null);
-        if (resLatest.ok) {
-          const text = await resLatest.text();
-          if (text) {
-            const data = JSON.parse(text);
-            if (data && data.status === 'COMPLETED') {
-              setLatestAnalysis(data);
-            }
-          }
-        }
-
-        // 2. 분석 이력 가져오기
-        const resHistory = await fetch('/api/v1/analyze/my-history', {
-          headers: { 'Authorization': `Bearer ${token}` }
-        });
-        if (!resHistory.ok) throw new Error('분석 기록을 불러오지 못했습니다.');
-        if (resHistory.ok) {
-          const text = await resHistory.text();
-          if (text) {
-            const data = JSON.parse(text);
-            setHistory(data || []);
-          }
-        }
+        if (resAnalyses.status === 401) { setLoginToken(null); router.replace('/login'); return; }
+        if (!resAnalyses.ok) throw new Error('분석 기록을 불러오지 못했습니다.');
+        const analyses = await resAnalyses.json();
+        setHistory(analyses);
+        setLatestAnalysis(analyses[0]?.status === 'COMPLETED' ? analyses[0] : null);
       } catch (e) {
         console.error('Error fetching mypage data', e);
         setLoadError('기록을 불러오지 못했습니다. 잠시 후 다시 시도해주세요.');

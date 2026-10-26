@@ -25,7 +25,7 @@ function SuccessContent() {
       try {
         const token = localStorage.getItem('accessToken');
         if (!token) { if (active) setStatus('error'); return; }
-        const response = await fetch('/api/v1/payment/toss/confirm', {
+        const response = await fetch('/api/v1/payments/confirmations', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
           body: JSON.stringify(confirmation),

@@ -49,7 +49,7 @@ export default function MvpAudioUploader() {
     async function poll() {
       try {
         const token = localStorage.getItem('accessToken');
-        const res = await fetch(`/api/v1/analyze/${encodeURIComponent(taskId!)}/status`, {
+        const res = await fetch(`/api/v1/analyses/${encodeURIComponent(taskId!)}`, {
           headers: token ? { Authorization: `Bearer ${token}` } : {},
         });
         if (!res.ok) throw new Error(res.status === 401 ? '로그인이 필요합니다. 로그인 후 결과를 다시 열어주세요.' : '결과를 불러오지 못했습니다. 잠시 후 다시 시도해주세요.');
@@ -95,7 +95,7 @@ export default function MvpAudioUploader() {
     try {
       const form = new FormData();
       form.append('file', file);
-      const res = await fetch('/api/v1/analyze', { method: 'POST', body: form, headers: { Authorization: `Bearer ${token}` } });
+      const res = await fetch('/api/v1/analyses', { method: 'POST', body: form, headers: { Authorization: `Bearer ${token}` } });
       if (!res.ok) {
         const error = await res.json();
         throw new Error(error.message || '파일을 업로드하지 못했습니다. 잠시 후 다시 시도해주세요.');
