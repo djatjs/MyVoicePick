@@ -54,3 +54,16 @@ assert.equal(changes, 3);
 delete globalThis.window;
 delete globalThis.localStorage;
 console.log('Login subscription and cleanup checks passed.');
+
+const { readAnalysisPoll } = load('../lib/analysis-session.ts');
+const json = (body, status = 200) => new Response(JSON.stringify(body), { status });
+assert.equal((await readAnalysisPoll(json({ status: 'COMPLETED', matchedSongTitle: 't' }))).kind, 'completed');
+assert.deepEqual(await readAnalysisPoll(json({ status: 'PENDING' })), { kind: 'waiting', queued: true });
+assert.deepEqual(await readAnalysisPoll(json({ status: 'PROCESSING' })), { kind: 'waiting', queued: false });
+assert.equal((await readAnalysisPoll(json({ status: 'FAILED' }))).kind, 'failed');
+assert.equal((await readAnalysisPoll(new Response(null, { status: 401 }))).kind, 'failed');
+assert.equal((await readAnalysisPoll(new Response(null, { status: 404 }))).kind, 'failed');
+for (const res of [null, new Response(null, { status: 502 }), new Response(null, { status: 504 }), new Response('<html>', { status: 200 })]) {
+  assert.deepEqual(await readAnalysisPoll(res), { kind: 'retry' });
+}
+console.log('Analysis polling keeps waiting through passing errors.');

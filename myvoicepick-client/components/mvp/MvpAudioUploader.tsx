@@ -5,10 +5,12 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { UploadCloud, Loader2, AlertCircle } from 'lucide-react';
 import { AnalysisResult, type MatchResult } from './AnalysisResult';
-import { verifyAnalysisSession, setLoginToken } from '../../lib/analysis-session';
+import { verifyAnalysisSession, setLoginToken, readAnalysisPoll } from '../../lib/analysis-session';
 import { TossPaymentModal } from './TossPaymentModal';
 
 type UploadState = 'idle' | 'dragging' | 'uploading' | 'processing' | 'success' | 'error';
+// a 4-minute recording usually takes about 3 minutes
+const SLOW_AFTER_MS = 5 * 60 * 1000;
 
 export default function MvpAudioUploader() {
   const router = useRouter();
@@ -16,6 +18,8 @@ export default function MvpAudioUploader() {
   const taskId = searchParams.get('taskId');
   const [uploadState, setUploadState] = useState<UploadState>(taskId ? 'processing' : 'idle');
   const [errorMessage, setErrorMessage] = useState('');
+  const [queued, setQueued] = useState(false);
+  const [slow, setSlow] = useState(false);
   const [matchResult, setMatchResult] = useState<MatchResult | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -46,39 +50,38 @@ export default function MvpAudioUploader() {
     if (!taskId) return;
     let cancelled = false;
     let timer: ReturnType<typeof setTimeout>;
+    const startedAt = Date.now();
     async function poll() {
-      try {
-        const token = localStorage.getItem('accessToken');
-        const res = await fetch(`/api/v1/analyses/${encodeURIComponent(taskId!)}`, {
-          headers: token ? { Authorization: `Bearer ${token}` } : {},
+      const token = localStorage.getItem('accessToken');
+      const res = await fetch(`/api/v1/analyses/${encodeURIComponent(taskId!)}`, {
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
+      }).catch(() => null);
+      const result = await readAnalysisPoll(res);
+      if (cancelled) return;
+      if (result.kind === 'completed') {
+        const { data } = result;
+        setMatchResult({
+          title: data.matchedSongTitle || data.title || '제목 없음',
+          artist: data.matchedArtist || data.artist || '아티스트 미상',
+          previewUrl: data.previewUrl || data.preview_url,
+          albumCoverUrl: data.albumCoverUrl,
+          similarityScore: data.similarityScore,
+          pitchHz: data.pitchHz,
+          recommendReason: data.recommendReason,
+          vocalStats: data.vocalStats,
+          userPlan: data.userPlan || 'FREE',
+          proFeatures: data.proFeatures,
         });
-        if (!res.ok) throw new Error(res.status === 401 ? '로그인이 필요합니다. 로그인 후 결과를 다시 열어주세요.' : '결과를 불러오지 못했습니다. 잠시 후 다시 시도해주세요.');
-        const data = await res.json();
-        if (cancelled) return;
-        if (data.status === 'COMPLETED') {
-          setMatchResult({
-            title: data.matchedSongTitle || data.title || '제목 없음',
-            artist: data.matchedArtist || data.artist || '아티스트 미상',
-            previewUrl: data.previewUrl || data.preview_url,
-            albumCoverUrl: data.albumCoverUrl,
-            similarityScore: data.similarityScore,
-            pitchHz: data.pitchHz,
-            recommendReason: data.recommendReason,
-            vocalStats: data.vocalStats,
-            userPlan: data.userPlan || 'FREE',
-            proFeatures: data.proFeatures,
-          });
-          setUploadState('success');
-        } else if (data.status === 'FAILED') {
-          throw new Error('음성을 분석하지 못했습니다. 목소리가 잘 들리는 다른 파일로 다시 시도해주세요.');
-        } else {
-          setUploadState('processing');
-          timer = setTimeout(poll, 3000);
-        }
-      } catch (error) {
-        if (cancelled) return;
-        setErrorMessage(error instanceof Error ? error.message : '결과를 불러오지 못했습니다.');
+        setUploadState('success');
+      } else if (result.kind === 'failed') {
+        setErrorMessage(result.message);
         setUploadState('error');
+      } else {
+        // the analysis keeps running on the server, so keep checking; back off after a passing error
+        if (result.kind === 'waiting') setQueued(result.queued);
+        if (Date.now() - startedAt > SLOW_AFTER_MS) setSlow(true);
+        setUploadState('processing');
+        timer = setTimeout(poll, result.kind === 'retry' ? 10000 : 3000);
       }
     }
     void poll();
@@ -91,6 +94,8 @@ export default function MvpAudioUploader() {
     if (!token) { rememberAnalysisReturn(); router.push('/login'); return; }
     setErrorMessage('');
     setMatchResult(null);
+    setQueued(false);
+    setSlow(false);
     setUploadState('uploading');
     try {
       const form = new FormData();
@@ -131,7 +136,7 @@ export default function MvpAudioUploader() {
             onDragLeave={() => { if (uploadState === 'dragging') setUploadState('idle'); }}
             onDrop={event => { event.preventDefault(); const file = event.dataTransfer.files[0]; if (file && !isBusy) void processFile(file); }}>
             <input type="file" ref={fileInputRef} className="sr-only" tabIndex={-1} aria-label="분석할 음성 파일" accept=".mp3,.wav,.m4a" disabled={isBusy || session !== 'authenticated'} onChange={event => { const file = event.target.files?.[0]; if (file) void processFile(file); event.target.value = ''; }} />
-            {isBusy ? <div role="status" aria-live="polite"><Loader2 className="workspace-upload-icon animate-spin" aria-hidden="true" /><h2>{uploadState === 'uploading' ? '파일을 업로드하고 있어요' : '목소리를 분석하고 있어요'}</h2><p className="workspace-description">{uploadState === 'uploading' ? '파일을 서버로 전송하고 있습니다.' : '분석을 준비하거나 음성의 특징을 비교하고 있습니다. 완료되면 결과를 보여드릴게요.'}</p></div> : uploadState === 'error' ? <div role="alert"><AlertCircle className="workspace-upload-icon" aria-hidden="true" /><h2>분석을 완료하지 못했어요</h2><p className="workspace-description">{errorMessage}</p><button className="workspace-primary" onClick={reset}>다시 시작하기</button><Link className="workspace-inline-link" href="/login" onClick={rememberAnalysisReturn}>로그인하기</Link></div> : <div>
+            {isBusy ? <div role="status" aria-live="polite"><Loader2 className="workspace-upload-icon animate-spin" aria-hidden="true" /><h2>{uploadState === 'uploading' ? '파일을 업로드하고 있어요' : queued ? '분석 순서를 기다리고 있어요' : '목소리를 분석하고 있어요'}</h2><p className="workspace-description">{uploadState === 'uploading' ? '파일을 서버로 전송하고 있습니다.' : slow ? '평소보다 오래 걸리고 있어요. 이 페이지를 나가도 분석은 계속되고, 결과는 마이페이지에서 확인할 수 있어요.' : '분석을 준비하거나 음성의 특징을 비교하고 있습니다. 완료되면 결과를 보여드릴게요.'}</p></div> : uploadState === 'error' ? <div role="alert"><AlertCircle className="workspace-upload-icon" aria-hidden="true" /><h2>분석을 완료하지 못했어요</h2><p className="workspace-description">{errorMessage}</p><button className="workspace-primary" onClick={reset}>다시 시작하기</button><Link className="workspace-inline-link" href="/login" onClick={rememberAnalysisReturn}>로그인하기</Link></div> : <div>
               <UploadCloud className="workspace-upload-icon" aria-hidden="true" />
               <h2>{session === 'anonymous' ? '로그인하고 내 목소리를 발견해보세요' : '노래한 파일을 여기에 놓아주세요'}</h2>
               <p className="workspace-description">{session === 'anonymous' ? '분석 결과를 계정에 저장하고 언제든 다시 확인할 수 있어요.' : '또는 아래 버튼으로 파일을 선택하세요.'}</p>
