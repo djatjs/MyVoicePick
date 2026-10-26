@@ -18,7 +18,7 @@ public class JwtUtil {
     private final long expirationTime;
 
     public JwtUtil(
-            @Value("${spring.jwt.secret:your_very_long_super_secret_jwt_key_for_myvoicepick_needs_to_be_32_bytes_or_more}") String secret,
+            @Value("${spring.jwt.secret}") String secret,
             @Value("${spring.jwt.expiration-time:86400000}") long expirationTime
     ) {
         this.secretKey = Keys.hmacShaKeyFor(secret.getBytes(StandardCharsets.UTF_8));

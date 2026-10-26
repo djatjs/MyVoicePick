@@ -56,3 +56,6 @@ portfolio_guide.md
 ### ai-worker generated audio ###
 ai-worker/temp/
 ai-worker/temp_demucs/
+
+# local secrets
+local.env
