@@ -6,20 +6,29 @@ import com.MyVoicePick.demo.repository.UserRepository;
 import com.MyVoicePick.demo.service.AnalysisService;
 import com.MyVoicePick.demo.service.S3Uploader;
 import lombok.RequiredArgsConstructor;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
-import org.springframework.security.core.Authentication;
-import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
+import org.springframework.web.server.ResponseStatusException;
 
-import java.util.HashMap;
+import java.net.URI;
+import java.util.List;
 import java.util.Map;
 
 /**
- * 클라이언트의 백엔드 진입점 역할을 하는 REST Controller 입니다.
+ * 분석(analysis) 자원을 다루는 REST Controller 입니다.
+ *
+ * POST   /api/v1/analyses          분석 요청 (202 + Location)
+ * GET    /api/v1/analyses          내 분석 목록 (최신순, size로 개수 제한)
+ * GET    /api/v1/analyses/{id}     분석 상태·결과
+ * DELETE /api/v1/analyses/{id}     분석 삭제 (204)
+ *
+ * /api/v1/analyze/** 는 예전 주소입니다. 배포된 프론트가 새 주소로 바뀔 때까지만 같이 받습니다.
  */
 @RestController
-@RequestMapping("/api/v1/analyze")
+@RequestMapping("/api/v1")
 @RequiredArgsConstructor
 public class AnalysisController {
 
@@ -28,94 +37,68 @@ public class AnalysisController {
     private final UserRepository userRepository;
 
     /**
-     * [엔드포인트 1] 음성 파일 분석 요청 (비동기)
-     * 클라이언트가 음성 파일을 업로드하면 즉시 분석 결과가 나오지 않으므로, HTTP 202 Accepted와 함께 추적용 영수증을 반환합니다.
+     * 분석 요청. 분석은 워커가 비동기로 하므로 202와 함께 결과를 확인할 주소(Location)를 돌려줍니다.
      */
-    @PostMapping
-    public ResponseEntity<Map<String, String>> requestAnalysis(
-            @RequestParam("file") MultipartFile file) {
-        // 1. 현재 로그인한 사용자의 이메일 확보 (JwtAuthenticationFilter에서 저장함)
-        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
-        String userEmail = (String) authentication.getPrincipal();
-
-        // 2. 이메일을 통해 DB에서 User 엔티티 조회
-        User user = userRepository.findByEmail(userEmail)
-                .orElseThrow(() -> new RuntimeException("User not found: " + userEmail));
+    @PostMapping({"/analyses", "/analyze"})
+    public ResponseEntity<Map<String, String>> createAnalysis(@RequestParam("file") MultipartFile file,
+                                                              @AuthenticationPrincipal String userEmail) {
+        User user = currentUser(userEmail);
 
         // 진행 중인 작업이 있으면 업로드 전에 거절한다 (429)
         analysisService.checkNoActiveTask(user.getId());
 
-        // 3. S3에 실제 파일 업로드
         String s3Key = s3Uploader.uploadFile(file);
-
-        // 4. 서비스 호출 (조회한 User의 실제 ID 사용)
         String taskUuid = analysisService.requestAnalysis(user.getId(), s3Key);
 
-        Map<String, String> responseBody = new HashMap<>();
-        responseBody.put("taskId", taskUuid);
-
-        return ResponseEntity.accepted().body(responseBody);
+        return ResponseEntity.accepted()
+                .location(URI.create("/api/v1/analyses/" + taskUuid))
+                .body(Map.of("taskId", taskUuid));
     }
 
     /**
-     * [엔드포인트 2] 작업 상태 조회 (Polling)
-     * 클라이언트가 발급받은 영수증(UUID)으로 상태를 지속적으로 물어봅니다.
+     * 내 분석 목록. 최신순이며 size를 주면 그 개수만 돌려줍니다(최신 1건은 size=1).
      */
-    @GetMapping("/{taskId}/status")
-    public ResponseEntity<TaskStatusResponse> getTaskStatus(
-            @PathVariable("taskId") String taskId,
-            @org.springframework.security.core.annotation.AuthenticationPrincipal String userEmail) {
-        // 비즈니스 로직(DB 검증, 상태 체크, 매핑)은 모두 Service와 DTO에서 우아하게 처리했으므로
-        // 컨트롤러는 아주 가볍게 의존성만 넘겨줍니다. (Controller는 우편배달부 역할에만 충실해야 함)
-        TaskStatusResponse response = analysisService.getTaskStatus(taskId, userEmail);
-        return ResponseEntity.ok(response);
+    @GetMapping("/analyses")
+    public ResponseEntity<List<TaskStatusResponse>> listAnalyses(@RequestParam(name = "size", required = false) Integer size,
+                                                                 @AuthenticationPrincipal String userEmail) {
+        if (size != null && size < 1) {
+            throw new IllegalArgumentException("size는 1 이상이어야 합니다.");
+        }
+        List<TaskStatusResponse> analyses = analysisService.getAnalysisHistory(currentUser(userEmail).getId());
+        return ResponseEntity.ok(size == null ? analyses : analyses.stream().limit(size).toList());
     }
 
     /**
-     * [엔드포인트 3] 나의 최신 분석 결과 조회 (마이페이지용)
+     * 분석 상태와 결과. 없거나 다른 사용자의 분석이면 404입니다.
      */
-    @GetMapping("/my-latest")
-    public ResponseEntity<TaskStatusResponse> getLatestAnalysis() {
-        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
-        String userEmail = (String) authentication.getPrincipal();
-
-        User user = userRepository.findByEmail(userEmail)
-                .orElseThrow(() -> new RuntimeException("User not found: " + userEmail));
-
-        TaskStatusResponse response = analysisService.getLatestAnalysisResult(user.getId());
-        
-        return ResponseEntity.ok(response);
+    @GetMapping({"/analyses/{taskId}", "/analyze/{taskId}/status"})
+    public ResponseEntity<TaskStatusResponse> getAnalysis(@PathVariable("taskId") String taskId,
+                                                          @AuthenticationPrincipal String userEmail) {
+        return ResponseEntity.ok(analysisService.getTaskStatus(taskId, userEmail));
     }
 
-    /**
-     * [엔드포인트 4] 나의 최근 분석 이력 조회 (마이페이지용)
-     */
-    @GetMapping("/my-history")
-    public ResponseEntity<java.util.List<TaskStatusResponse>> getAnalysisHistory() {
-        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
-        String userEmail = (String) authentication.getPrincipal();
-
-        User user = userRepository.findByEmail(userEmail)
-                .orElseThrow(() -> new RuntimeException("User not found: " + userEmail));
-
-        java.util.List<TaskStatusResponse> history = analysisService.getAnalysisHistory(user.getId());
-        
-        return ResponseEntity.ok(history);
-    }
-
-    /**
-     * [엔드포인트 5] 나의 특정 분석 이력 삭제
-     */
-    @DeleteMapping("/{taskId}")
-    public ResponseEntity<Void> deleteAnalysisHistory(@PathVariable("taskId") String taskId) {
-        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
-        String userEmail = (String) authentication.getPrincipal();
-
-        User user = userRepository.findByEmail(userEmail)
-                .orElseThrow(() -> new RuntimeException("User not found: " + userEmail));
-
-        analysisService.deleteAnalysisTask(user.getId(), taskId);
-        
+    @DeleteMapping({"/analyses/{taskId}", "/analyze/{taskId}"})
+    public ResponseEntity<Void> deleteAnalysis(@PathVariable("taskId") String taskId,
+                                               @AuthenticationPrincipal String userEmail) {
+        analysisService.deleteAnalysisTask(currentUser(userEmail).getId(), taskId);
         return ResponseEntity.noContent().build();
+    }
+
+    /** 예전 주소: GET /api/v1/analyses 로 대체. 프론트 배포 후 삭제. */
+    @GetMapping("/analyze/my-history")
+    public ResponseEntity<List<TaskStatusResponse>> legacyHistory(@AuthenticationPrincipal String userEmail) {
+        return ResponseEntity.ok(analysisService.getAnalysisHistory(currentUser(userEmail).getId()));
+    }
+
+    /** 예전 주소: GET /api/v1/analyses?size=1 로 대체. 프론트 배포 후 삭제. */
+    @GetMapping("/analyze/my-latest")
+    public ResponseEntity<TaskStatusResponse> legacyLatest(@AuthenticationPrincipal String userEmail) {
+        return ResponseEntity.ok(analysisService.getLatestAnalysisResult(currentUser(userEmail).getId()));
+    }
+
+    // 토큰은 유효한데 계정이 지워진 경우: 서버 오류(500)가 아니라 인증 실패로 응답
+    private User currentUser(String userEmail) {
+        return userRepository.findByEmail(userEmail)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.UNAUTHORIZED, "사용자를 찾을 수 없습니다."));
     }
 }

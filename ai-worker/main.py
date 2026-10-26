@@ -2,6 +2,7 @@ import os
 import json
 import time
 import logging
+from datetime import datetime
 import redis
 from dotenv import load_dotenv
 
@@ -72,9 +73,15 @@ def process_queue_message(message_data: dict):
             return
 
             
-        # 2. 상태를 PROCESSING으로 변경
+        # 이미 실패 처리됐거나 끝난 작업(예: 대기 중 삭제·시간 초과)은 다시 분석하지 않는다
+        if task.status != "PENDING":
+            logger.warning(f"대기 상태가 아닌 작업은 건너뜁니다. taskUuid: {task_uuid}, status: {task.status}")
+            return
+
+        # 2. 상태를 PROCESSING으로 변경하고, 시간 제한의 기준이 되는 시작 시각을 기록
         logger.info(f"작업 시작. taskUuid: {task_uuid}")
         task.status = "PROCESSING"
+        task.started_at = datetime.now()
         db.commit()
         
         # 3. AI 분석 서비스 호출

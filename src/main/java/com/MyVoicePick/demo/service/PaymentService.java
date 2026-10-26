@@ -19,45 +19,6 @@ public class PaymentService {
     @Value("${toss.payment.secret-key}")
     private String tossSecretKey;
 
-    @Value("${app.frontend-url}")
-    private String frontendUrl;
-
-    /**
-     * 결제 체크아웃 세션을 생성합니다.
-     * 실제 운영 환경에서는 Stripe Java SDK 등을 사용하여 실제 결제창 URL을 생성해야 합니다.
-     * 현재는 데모를 위해 백엔드의 Mock 성공 엔드포인트로 리다이렉트하는 URL을 반환합니다.
-     */
-    public String createCheckoutSession(String userEmail, String plan) {
-        log.info("Creating checkout session for user: {} with plan: {}", userEmail, plan);
-        
-        // 사용자가 유효한지 확인
-        userRepository.findByEmail(userEmail)
-                .orElseThrow(() -> new RuntimeException("User not found: " + userEmail));
-
-        // 프론트엔드의 토스페이먼츠 결제창 페이지로 리다이렉트
-        return frontendUrl + "/checkout?plan=" + plan;
-    }
-
-    /**
-     * 결제가 완료되었을 때 유저의 플랜을 업데이트합니다.
-     */
-    @Transactional
-    public void processPaymentSuccess(String userEmail, String planStr) {
-        log.info("Processing payment success for user: {}, plan: {}", userEmail, planStr);
-        
-        User user = userRepository.findByEmail(userEmail)
-                .orElseThrow(() -> new RuntimeException("User not found: " + userEmail));
-
-        try {
-            UserPlan newPlan = UserPlan.valueOf(planStr.toUpperCase());
-            user.upgradePlan(newPlan, null);
-            log.info("User {} upgraded to plan {}", userEmail, newPlan);
-        } catch (IllegalArgumentException e) {
-            log.error("Invalid plan requested: {}", planStr);
-            throw new RuntimeException("Invalid plan: " + planStr);
-        }
-    }
-
     /**
      * 토스페이먼츠 실제 결제 승인 API를 호출하고 유저 플랜을 업그레이드합니다.
      */

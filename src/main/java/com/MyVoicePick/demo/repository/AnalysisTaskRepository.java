@@ -37,6 +37,13 @@ public interface AnalysisTaskRepository extends JpaRepository<AnalysisTask, Long
     boolean existsByUserIdAndStatusIn(Long userId,
             java.util.Collection<com.MyVoicePick.demo.entity.AnalysisStatus> statuses);
 
-    java.util.List<AnalysisTask> findByStatusInAndCreatedAtBefore(
-            java.util.Collection<com.MyVoicePick.demo.entity.AnalysisStatus> statuses, java.time.LocalDateTime before);
+    java.util.List<AnalysisTask> findByStatusAndCreatedAtBefore(
+            com.MyVoicePick.demo.entity.AnalysisStatus status, java.time.LocalDateTime before);
+
+    /**
+     * 처리를 시작한 지 오래된 작업. started_at이 없는 예전 작업은 접수 시각으로 판단한다.
+     */
+    @Query("select t from AnalysisTask t where t.status = :status and coalesce(t.startedAt, t.createdAt) < :before")
+    java.util.List<AnalysisTask> findStartedBefore(@Param("status") com.MyVoicePick.demo.entity.AnalysisStatus status,
+                                                   @Param("before") java.time.LocalDateTime before);
 }

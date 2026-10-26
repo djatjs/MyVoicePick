@@ -55,6 +55,10 @@ public class AnalysisTask {
     @Column(name = "created_at", nullable = false, updatable = false)
     private LocalDateTime createdAt;
 
+    // 워커가 대기열에서 꺼내 처리를 시작한 시각. 대기 시간과 처리 시간을 나눠 시간 제한을 걸기 위해 둔다
+    @Column(name = "started_at")
+    private LocalDateTime startedAt;
+
     /**
      * AI 파이썬 워커가 분석 후 생성한 목소리 성향 태그를 JSON 배열 문자열로 저장합니다.
      * 예: ["#부드러운_중저음", "#감성_발라드_추천"]

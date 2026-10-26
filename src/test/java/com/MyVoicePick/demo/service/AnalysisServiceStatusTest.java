@@ -10,7 +10,9 @@ import java.util.Optional;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.data.redis.core.StringRedisTemplate;
+import org.springframework.http.HttpStatus;
 import org.springframework.transaction.PlatformTransactionManager;
+import org.springframework.web.server.ResponseStatusException;
 
 import com.MyVoicePick.demo.dto.TaskStatusResponse;
 import com.MyVoicePick.demo.entity.AnalysisStatus;
@@ -45,10 +47,24 @@ class AnalysisServiceStatusTest {
     }
 
     @Test
-    void anotherUserGetsSameErrorAsMissingTask() {
+    void anotherUserGetsSameNotFoundAsMissingTask() {
         assertThatThrownBy(() -> service.getTaskStatus("task-1", "other@example.com"))
-                .isInstanceOf(IllegalArgumentException.class);
+                .isInstanceOfSatisfying(ResponseStatusException.class,
+                        e -> assertThat(e.getStatusCode()).isEqualTo(HttpStatus.NOT_FOUND));
         assertThatThrownBy(() -> service.getTaskStatus("no-such-task", "other@example.com"))
-                .isInstanceOf(IllegalArgumentException.class);
+                .isInstanceOfSatisfying(ResponseStatusException.class,
+                        e -> assertThat(e.getStatusCode()).isEqualTo(HttpStatus.NOT_FOUND));
+    }
+
+    @Test
+    void anotherUserCannotDeleteAndGetsNotFound() {
+        User other = mock(User.class);
+        when(other.getId()).thenReturn(2L);
+        AnalysisTask owned = taskRepository.findByTaskUuid("task-1").orElseThrow();
+        when(owned.getUser().getId()).thenReturn(1L);
+
+        assertThatThrownBy(() -> service.deleteAnalysisTask(2L, "task-1"))
+                .isInstanceOfSatisfying(ResponseStatusException.class,
+                        e -> assertThat(e.getStatusCode()).isEqualTo(HttpStatus.NOT_FOUND));
     }
 }

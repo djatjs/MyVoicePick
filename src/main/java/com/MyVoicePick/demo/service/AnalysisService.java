@@ -137,11 +137,10 @@ public class AnalysisService {
      * 클라이언트가 주기적으로(Polling) 영수증 번호를 이용해 작업 상태를 확인하는 로직입니다.
      */
     public TaskStatusResponse getTaskStatus(String taskUuid, String userEmail) {
-        AnalysisTask task = analysisTaskRepository.findByTaskUuid(taskUuid)
-                .orElseThrow(() -> new IllegalArgumentException("존재하지 않거나 유효하지 않은 작업 ID입니다. Task UUID: " + taskUuid));
+        AnalysisTask task = analysisTaskRepository.findByTaskUuid(taskUuid).orElseThrow(() -> notFound(taskUuid));
         // 다른 사용자의 작업은 없는 작업과 똑같이 응답한다(작업 ID가 존재하는지도 알려주지 않음)
         if (!task.getUser().getEmail().equals(userEmail)) {
-            throw new IllegalArgumentException("존재하지 않거나 유효하지 않은 작업 ID입니다. Task UUID: " + taskUuid);
+            throw notFound(taskUuid);
         }
 
         return TaskStatusResponse.from(task);
@@ -171,13 +170,16 @@ public class AnalysisService {
      */
     @Transactional
     public void deleteAnalysisTask(Long userId, String taskUuid) {
-        AnalysisTask task = analysisTaskRepository.findByTaskUuid(taskUuid)
-                .orElseThrow(() -> new IllegalArgumentException("존재하지 않거나 유효하지 않은 작업 ID입니다."));
-        
+        AnalysisTask task = analysisTaskRepository.findByTaskUuid(taskUuid).orElseThrow(() -> notFound(taskUuid));
+        // 남의 작업도 404: 조회와 같이 존재 여부를 알려주지 않는다
         if (!task.getUser().getId().equals(userId)) {
-            throw new IllegalArgumentException("해당 분석 이력을 삭제할 권한이 없습니다.");
+            throw notFound(taskUuid);
         }
         
         analysisTaskRepository.delete(task);
+    }
+
+    private static ResponseStatusException notFound(String taskUuid) {
+        return new ResponseStatusException(HttpStatus.NOT_FOUND, "존재하지 않는 분석입니다. Task UUID: " + taskUuid);
     }
 }

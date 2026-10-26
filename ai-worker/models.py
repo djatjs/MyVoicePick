@@ -19,6 +19,7 @@ class AnalysisTask(Base):
     
     matched_song_id = Column(BigInteger, nullable=True)
     created_at = Column(DateTime, nullable=False)
+    started_at = Column(DateTime, nullable=True)     # 워커가 처리를 시작한 시각 (시간 제한 기준)
     # AI 분석 결과로 생성된 목소리 성향 태그 (JSON 배열 문자열로 저장)
     voice_tags = Column(Text, nullable=True)
 
