@@ -33,9 +33,12 @@ def build(limit=None, melon_per_genre=0):
     catalog = load_catalog()
     failed_path = CATALOG_DIR / 'failed.json'
     failed = json.loads(failed_path.read_text(encoding='utf-8')) if failed_path.exists() else {}
-    with sqlite3.connect(BASE / 'local_temp.db') as db:
-        targets = [{'id': i, 'title': t, 'artist': a}
-                   for i, t, a in db.execute('select id, title, artist from songs order by id')]
+    targets = []
+    # the original 56-song local DB is optional; elsewhere the Melon charts are the only source
+    if (BASE / 'local_temp.db').exists():
+        with sqlite3.connect(BASE / 'local_temp.db') as db:
+            targets = [{'id': i, 'title': t, 'artist': a}
+                       for i, t, a in db.execute('select id, title, artist from songs order by id')]
     if melon_per_genre:
         targets += collector.load_target_songs_from_melon(melon_per_genre)
     done = {collector.song_key(s['title'], s['artist']) for s in catalog.values()}
