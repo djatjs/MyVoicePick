@@ -6,6 +6,7 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
+import java.time.LocalDateTime;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
@@ -28,7 +29,8 @@ public record TaskStatusResponse(
         String vocalPersona,           // [추가] 감성 보컬 타이틀
         Map<String, Object> vocalStats, // 녹음에서 측정한 음역(range_low/high/center)과 음색이 닮은 가수
         String userPlan,               // [신규] 사용자 요금제 (FREE, PRO, STUDIO)
-        Map<String, Object> proFeatures // [신규] PRO 유저 전용 솔루션 데이터
+        Map<String, Object> proFeatures, // [신규] PRO 유저 전용 솔루션 데이터
+        LocalDateTime createdAt        // 분석 요청 시각. 기록 목록에서 같은 곡의 분석을 구분하는 데 쓴다
 ) {
     private static final ObjectMapper MAPPER = new ObjectMapper();
 
@@ -65,7 +67,8 @@ public record TaskStatusResponse(
                 task.getVocalPersona(),
                 vocalStats,
                 task.getUser().getPlan().name(), // 실제 사용자의 플랜 정보 반영
-                proFeatures // 실제 DB 연동 데이터 반환
+                proFeatures, // 실제 DB 연동 데이터 반환
+                task.getCreatedAt()
         );
     }
 

@@ -6,6 +6,8 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
+import org.springframework.web.bind.MissingServletRequestParameterException;
+import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
 import org.springframework.web.server.ResponseStatusException;
 
 /**
@@ -34,6 +36,17 @@ public class GlobalExceptionHandler {
     }
 
     /**
+     * 요청 값의 형식이 틀린 경우 (예: size=abc). 아래 RuntimeException 처리기에 잡히면 500이 되고
+     * Java 변환 메시지가 그대로 나가므로 400과 고정 문구로 돌려준다.
+     */
+    @ExceptionHandler({MethodArgumentTypeMismatchException.class, MissingServletRequestParameterException.class})
+    public ResponseEntity<ErrorResponse> handleBadRequestParameter(Exception e) {
+        log.warn("[BAD_REQUEST] {}", e.getMessage());
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                .body(ErrorResponse.of("BAD_REQUEST", "요청 값의 형식이 올바르지 않습니다."));
+    }
+
+    /**
      * 상태 코드를 직접 정해 던진 예외 (예: 진행 중 작업이 있을 때 429).
      * 아래 RuntimeException 처리기에 잡히면 500이 되므로 따로 둔다.
      */
@@ -53,8 +66,8 @@ public class GlobalExceptionHandler {
         // 서버 파운데이션 라인의 문제이므로, 개발자가 즉각 확인할 수 있게 error 레벨 및 전체 스택트레이스 로깅
         log.error("[SERVER_ERROR] 서버 내부 로직 처리 중 문제가 발생했습니다: {}", e.getMessage(), e);
         
-        // 주의: 클라이언트에게는 스택트레이스 등 민감 정보가 털리지 않게 메시지만 정제해서 반환
-        ErrorResponse response = ErrorResponse.of("SERVER_ERROR", e.getMessage());
+        // 예외 메시지에는 내부 정보가 섞일 수 있어 클라이언트에는 고정 문구만 보낸다
+        ErrorResponse response = ErrorResponse.of("SERVER_ERROR", "일시적인 서버 오류가 발생했습니다. 잠시 후 다시 시도해주세요.");
         return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(response);
     }
 }

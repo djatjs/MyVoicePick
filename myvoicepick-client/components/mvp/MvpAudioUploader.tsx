@@ -18,6 +18,7 @@ export default function MvpAudioUploader() {
   const taskId = searchParams.get('taskId');
   const [uploadState, setUploadState] = useState<UploadState>(taskId ? 'processing' : 'idle');
   const [errorMessage, setErrorMessage] = useState('');
+  const [notFound, setNotFound] = useState(false);
   const [queued, setQueued] = useState(false);
   const [slow, setSlow] = useState(false);
   const [matchResult, setMatchResult] = useState<MatchResult | null>(null);
@@ -75,6 +76,7 @@ export default function MvpAudioUploader() {
         setUploadState('success');
       } else if (result.kind === 'failed') {
         setErrorMessage(result.message);
+        setNotFound(res?.status === 404);
         setUploadState('error');
       } else {
         // the analysis keeps running on the server, so keep checking; back off after a passing error
@@ -93,6 +95,7 @@ export default function MvpAudioUploader() {
     const token = localStorage.getItem('accessToken');
     if (!token) { rememberAnalysisReturn(); router.push('/login'); return; }
     setErrorMessage('');
+    setNotFound(false);
     setMatchResult(null);
     setQueued(false);
     setSlow(false);
@@ -136,7 +139,7 @@ export default function MvpAudioUploader() {
             onDragLeave={() => { if (uploadState === 'dragging') setUploadState('idle'); }}
             onDrop={event => { event.preventDefault(); const file = event.dataTransfer.files[0]; if (file && !isBusy) void processFile(file); }}>
             <input type="file" ref={fileInputRef} className="sr-only" tabIndex={-1} aria-label="분석할 음성 파일" accept=".mp3,.wav,.m4a" disabled={isBusy || session !== 'authenticated'} onChange={event => { const file = event.target.files?.[0]; if (file) void processFile(file); event.target.value = ''; }} />
-            {isBusy ? <div role="status" aria-live="polite"><Loader2 className="workspace-upload-icon animate-spin" aria-hidden="true" /><h2>{uploadState === 'uploading' ? '파일을 업로드하고 있어요' : queued ? '분석 순서를 기다리고 있어요' : '목소리를 분석하고 있어요'}</h2><p className="workspace-description">{uploadState === 'uploading' ? '파일을 서버로 전송하고 있습니다.' : slow ? '평소보다 오래 걸리고 있어요. 이 페이지를 나가도 분석은 계속되고, 결과는 마이페이지에서 확인할 수 있어요.' : '분석을 준비하거나 음성의 특징을 비교하고 있습니다. 완료되면 결과를 보여드릴게요.'}</p></div> : uploadState === 'error' ? <div role="alert"><AlertCircle className="workspace-upload-icon" aria-hidden="true" /><h2>분석을 완료하지 못했어요</h2><p className="workspace-description">{errorMessage}</p><button className="workspace-primary" onClick={reset}>다시 시작하기</button><Link className="workspace-inline-link" href="/login" onClick={rememberAnalysisReturn}>로그인하기</Link></div> : <div>
+            {isBusy ? <div role="status" aria-live="polite"><Loader2 className="workspace-upload-icon animate-spin" aria-hidden="true" /><h2>{uploadState === 'uploading' ? '파일을 업로드하고 있어요' : queued ? '분석 순서를 기다리고 있어요' : '목소리를 분석하고 있어요'}</h2><p className="workspace-description">{uploadState === 'uploading' ? '파일을 서버로 전송하고 있습니다.' : slow ? '평소보다 오래 걸리고 있어요. 이 페이지를 나가도 분석은 계속되고, 결과는 마이페이지에서 확인할 수 있어요.' : '분석을 준비하거나 음성의 특징을 비교하고 있습니다. 완료되면 결과를 보여드릴게요.'}</p></div> : uploadState === 'error' ? <div role="alert"><AlertCircle className="workspace-upload-icon" aria-hidden="true" /><h2>{notFound ? '분석 기록을 찾을 수 없어요' : '분석을 완료하지 못했어요'}</h2><p className="workspace-description">{errorMessage}</p><button className="workspace-primary" onClick={reset}>{notFound ? '새로 분석하기' : '다시 시작하기'}</button>{session === 'authenticated' ? <Link className="workspace-inline-link" href="/mypage">마이페이지에서 기록 보기</Link> : <Link className="workspace-inline-link" href="/login" onClick={rememberAnalysisReturn}>로그인하기</Link>}</div> : <div>
               <UploadCloud className="workspace-upload-icon" aria-hidden="true" />
               <h2>{session === 'anonymous' ? '로그인하고 내 목소리를 발견해보세요' : '노래한 파일을 여기에 놓아주세요'}</h2>
               <p className="workspace-description">{session === 'anonymous' ? '분석 결과를 계정에 저장하고 언제든 다시 확인할 수 있어요.' : '또는 아래 버튼으로 파일을 선택하세요.'}</p>

@@ -15,7 +15,7 @@ export default function Page() {
         <ol className="info-guide-steps">
           <li id="prepare"><span>01</span><section><h2>목소리가 선명한 파일 준비하기</h2><p>주변 소음과 반주가 적고, 내 목소리가 잘 들리는 녹음을 준비하세요. 과도한 음향 효과보다 평소 목소리가 드러나는 녹음이 비교에 도움이 됩니다.</p><div className="info-file-spec"><strong>MP3 · WAV · M4A</strong><span>50MB 미만</span></div></section></li>
           <li id="upload"><span>02</span><section><h2>로그인하고 파일 올리기</h2><p>분석 페이지에서 파일을 선택하거나 업로드 영역에 놓아주세요. 파일을 선택하면 업로드와 분석이 시작됩니다. 진행 중인 분석이 끝난 뒤 새 파일을 올릴 수 있습니다.</p><p>처리 시간은 파일과 대기 상황에 따라 달라지며 완료되면 결과가 표시됩니다.</p></section></li>
-          <li id="results"><span>03</span><section><h2>추천곡과 목소리 특징 살펴보기</h2><p>먼저 닮은 가수와 추천곡을 확인하세요. 음색 유사도는 목소리 특징의 비교값이며, 따뜻함·선명도 등의 지표도 높을수록 실력이 좋다는 뜻은 아닙니다.</p><p>Hz로 표시된 음높이 하나만으로 전체 음역대를 알 수는 없습니다. 녹음 조건이 다른 결과를 단순한 성장 점수로 비교하지 마세요.</p><Link href="/mypage" className="workspace-inline-link">저장된 기록 보기</Link></section></li>
+          <li id="results"><span>03</span><section><h2>추천곡과 목소리 특징 살펴보기</h2><p>먼저 닮은 가수와 추천곡을 확인하세요. 음색 유사도는 추천곡과 목소리 특징을 비교한 값이며, 높을수록 실력이 좋다는 뜻은 아닙니다.</p><p>표시되는 음역은 이번 녹음에서 들린 범위라 내가 낼 수 있는 전체 음역과는 다를 수 있습니다. 녹음 조건이 다른 결과를 단순한 성장 점수로 비교하지 마세요.</p><Link href="/mypage" className="workspace-inline-link">저장된 기록 보기</Link></section></li>
         </ol>
         <section id="questions" className="info-faq"><h2>자주 묻는 질문</h2>
           <details><summary>파일이 업로드되지 않아요</summary><p>파일 형식과 크기를 확인하고 로그인이 유지되는지 확인해주세요. 확장자만 바꾸는 대신 녹음 앱에서 지원 형식으로 내보내세요.</p></details>

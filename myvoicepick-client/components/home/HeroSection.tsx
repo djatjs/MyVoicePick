@@ -13,7 +13,7 @@ export function HeroSection() {
           <Link href="/analyze" className="home-primary">내 목소리 분석하기 <ArrowUpRight size={19} aria-hidden="true" /></Link>
           <Link href="#result-example" className="home-text-link">결과 예시 살펴보기</Link>
         </div>
-        <p className="home-upload-note">MP3 · WAV 파일 업로드</p>
+        <p className="home-upload-note">MP3 · WAV · M4A 파일 업로드</p>
       </div>
       <DashboardPreview />
     </section>

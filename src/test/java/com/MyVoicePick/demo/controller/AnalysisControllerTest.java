@@ -40,7 +40,7 @@ class AnalysisControllerTest {
     }
 
     private static TaskStatusResponse result(String id) {
-        return new TaskStatusResponse(id, null, null, null, null, null, List.of(), null, null, null, null, null, null, null);
+        return new TaskStatusResponse(id, null, null, null, null, null, List.of(), null, null, null, null, null, null, null, null);
     }
 
     @Test
@@ -65,6 +65,7 @@ class AnalysisControllerTest {
         mvc.perform(get("/api/v1/analyses").param("size", "1"))
                 .andExpect(status().isOk()).andExpect(jsonPath("$.length()").value(1)).andExpect(jsonPath("$[0].taskId").value("new"));
         mvc.perform(get("/api/v1/analyses").param("size", "0")).andExpect(status().isBadRequest());
+        mvc.perform(get("/api/v1/analyses").param("size", "abc")).andExpect(status().isBadRequest());
     }
 
     @Test

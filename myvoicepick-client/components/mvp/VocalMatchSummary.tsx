@@ -5,7 +5,7 @@ import Image from 'next/image';
 import { AudioLines, Music2 } from 'lucide-react';
 
 interface Props {
-  result: { artist: string; title: string; similarityScore?: number; previewUrl?: string; albumCoverUrl?: string };
+  result: { artist: string; title: string; similarityScore?: number; previewUrl?: string; albumCoverUrl?: string; vocalStats?: { similar_artists?: string[] } };
   example?: boolean;
 }
 
@@ -28,6 +28,8 @@ function PreviewButton({ url }: { url: string }) {
 }
 
 export function VocalMatchSummary({ result, example = false }: Props) {
+  // result.artist sings the recommended song; the closest singer comes from the timbre comparison
+  const closest = result.vocalStats?.similar_artists?.[0] ?? (example ? result.artist : undefined);
   return (
     <section id={example ? 'result-example' : undefined} className={`vocal-summary ${example ? '' : 'vocal-summary-report'}`} aria-label={example ? '분석 결과 예시' : '보컬 분석 요약'}>
       <div className="vocal-summary-top"><span><AudioLines size={17} aria-hidden="true" /> 나의 보컬 리포트</span><span className="vocal-summary-badge">{example ? '결과 예시' : '분석 완료'}</span></div>
@@ -42,8 +44,8 @@ export function VocalMatchSummary({ result, example = false }: Props) {
       )}
       <div className="vocal-summary-body">
         <div className="vocal-match">
-          <div><p className="vocal-label">나와 닮은 가수</p><h2>{result.artist}</h2><p>내 목소리와 비교한 아티스트</p></div>
-          <div className="vocal-score"><strong>{result.similarityScore ?? '—'}<span>{result.similarityScore != null ? '%' : ''}</span></strong><span>음색 유사도</span></div>
+          <div><p className="vocal-label">나와 닮은 가수</p><h2>{closest ?? '—'}</h2><p>{closest ? '음색이 가장 가까운 가수' : '이전 방식의 기록이라 표시하지 않아요'}</p></div>
+          <div className="vocal-score"><strong>{result.similarityScore ?? '—'}<span>{result.similarityScore != null ? '%' : ''}</span></strong><span>추천곡과 음색 유사도</span></div>
         </div>
         <div className="vocal-track">
           {/* unoptimized: covers come from external stores (iTunes, YouTube); serve as-is instead of allow-listing hosts */}

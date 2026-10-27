@@ -130,7 +130,7 @@ def result_fields(user, catalog):
     key = None
     if best and best['key_judged']:
         octave = f" (한 옥타브 {'낮게' if best['octave'] < 0 else '높게'})" if best['octave'] else ''
-        key = (f"{best['shift']:+d} Key" if best['shift'] else '원키 (Original Key)') + octave
+        key = (f"{best['shift']:+d} Key" if best['shift'] else '원키') + octave
     return {
         'matched_song_id': best['id'] if best else None,
         'similarity_score': round((best['similarity'] + 1) / 2 * 100) if best else 0,
@@ -165,7 +165,7 @@ def note(midi):
 
 def reason(song, user):
     r = song['range']
-    parts = [f"음색이 카탈로그 곡 중 상위 {round((1 - song['timbre_pct']) * 100) or 1}%로 가까워요"]
+    parts = [f"등록된 곡 중 음색이 가까운 순으로 상위 {round((1 - song['timbre_pct']) * 100) or 1}%에 드는 곡이에요"]
     span = f"곡의 주 음역 {note(r['pitch_midi_p10'])}~{note(r['pitch_midi_p90'])}"
     if not song.get('key_judged', True):
         parts.append(f'{span}예요. 이번 녹음에서 들린 음역이 좁아서 키는 판단하지 않았어요')

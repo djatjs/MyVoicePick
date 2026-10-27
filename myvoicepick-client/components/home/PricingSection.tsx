@@ -60,7 +60,7 @@ export function PricingSection() {
         </section>
         <section className="workspace-panel pricing-plan pricing-plan-pro">
           <div><p className="workspace-kicker">더 많은 선택지가 필요할 때</p><h2>Pro</h2><p className="pricing-price">19,000<span>원 / 월 기준</span></p><p className="workspace-note">기본 분석에 추천 키와 추가 추천곡을 더해요</p></div>
-          <ul><li><Check aria-hidden="true" /> Free의 기본 분석 기능</li><li><Check aria-hidden="true" /> 곡별 추천 키</li><li><Check aria-hidden="true" /> 추가 추천곡 플레이리스트</li></ul>
+          <ul><li><Check aria-hidden="true" /> Free의 기본 분석 기능</li><li><Check aria-hidden="true" /> 추천곡의 추천 키</li><li><Check aria-hidden="true" /> 추가 추천곡 플레이리스트</li></ul>
           <button className="workspace-primary" disabled={checking} onClick={openPayment}>{checking ? '계정 확인 중' : 'Pro 테스트 결제하기'}</button>
         </section>
       </div>
